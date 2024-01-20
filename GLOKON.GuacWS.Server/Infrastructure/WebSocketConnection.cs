@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Net.WebSockets;
 using GLOKON.GuacWS.Server.Services;
+using Microsoft.Extensions.Logging;
 
 namespace GLOKON.GuacWS.Server.Infrastructure
 {
@@ -12,6 +13,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure
     {
         #region Fields
         private readonly int _receivePayloadBufferSize;
+        private readonly ILogger<WebSocketConnection> logger;
         private readonly int? _sendSegmentSize;
 
         private readonly WebSocket _webSocket;
@@ -20,7 +22,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure
         #endregion
 
         #region Properties
-        public Guid Id { get; } = Guid.NewGuid();
+        public Guid Id { get; }
 
         public WebSocketCloseStatus? CloseStatus { get; private set; } = null;
 
@@ -30,20 +32,18 @@ namespace GLOKON.GuacWS.Server.Infrastructure
         #region Events
         public event EventHandler<string> ReceiveText;
 
-        public delegate Task ReceiveTextAsync(object sender, string message);
-
-        public delegate Task ReceiveBinaryAsync(object sender, string message);
-
-        public AsyncEvent<byte[]> ReceiveBinary;
+        public event EventHandler<byte[]> ReceiveBinary;
         #endregion
 
         #region Constructor
-        public WebSocketConnection(WebSocket webSocket, ITextWebSocketSubprotocol textSubProtocol, int? sendSegmentSize, int receivePayloadBufferSize)
+        public WebSocketConnection(Guid Id, WebSocket webSocket, ITextWebSocketSubprotocol textSubProtocol, int? sendSegmentSize, int receivePayloadBufferSize, ILogger<WebSocketConnection> logger)
         {
+            this.Id = Id;
             _webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
             _textSubProtocol = textSubProtocol ?? throw new ArgumentNullException(nameof(textSubProtocol));
             _sendSegmentSize = sendSegmentSize;
             _receivePayloadBufferSize = receivePayloadBufferSize;
+            this.logger = logger;
             _cancellationTokenSource = new CancellationTokenSource();
         }
         #endregion
@@ -65,7 +65,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure
             return SendMessageBytesAsync(message, WebSocketMessageType.Binary, cancellationToken: cancellationToken);
         }
 
-        public async Task ReceiveMessagesUntilCloseAsync()
+        public async Task ReceiveUntilCloseAsync()
         {
             try
             {
@@ -95,7 +95,10 @@ namespace GLOKON.GuacWS.Server.Infrastructure
                 CloseStatus = WebSocketCloseStatus.NormalClosure;
                 CloseStatusDescription = "WebSocket was requested to close";
             }
-            catch (WebSocketException wsex) when (wsex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely) { }
+            catch (WebSocketException wsex) when (wsex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
+            {
+                logger.LogError(wsex, "[{0}] Error occurred during receiving from WebSocket", Id);
+            }
         }
 
         private Task SendTextMessageBytesAsync(byte[] messageBytes, CancellationToken cancellationToken)

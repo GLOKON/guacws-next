@@ -1,6 +1,4 @@
-﻿using GLOKON.GuacWS.Server.Infrastructure;
-using GLOKON.GuacWS.Server.Middlewares;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.IO;
@@ -14,19 +12,22 @@ namespace GLOKON.GuacWS.Server.Guac
     internal class GuacDClient: IDisposable
     {
         private readonly GuacDOptions options;
+        private readonly ILogger<GuacDClient> logger;
         private readonly TcpClient client;
         private readonly CancellationTokenSource cts;
-
-        private Task messageHandler;
 
         private NetworkStream stream;
         private byte[] receiveBuffer;
 
+        public Guid Id { get; }
+
         public event EventHandler<string> ReceiveText;
 
-        public GuacDClient(GuacDOptions options)
+        public GuacDClient(Guid Id, GuacDOptions options, ILogger<GuacDClient> logger)
         {
+            this.Id = Id;
             this.options = options;
+            this.logger = logger;
             this.cts = new CancellationTokenSource();
             client = new TcpClient()
             {
@@ -48,7 +49,6 @@ namespace GLOKON.GuacWS.Server.Guac
         {
             await client.ConnectAsync(options.Host, options.Port);
             stream = client.GetStream();
-            messageHandler = Task.Run(ReceiveUntilCloseAsync);
         }
 
         public Task CloseAsync()
@@ -59,7 +59,7 @@ namespace GLOKON.GuacWS.Server.Guac
             return Task.CompletedTask;
         }
 
-        public Task SendTextAsync(string message, CancellationToken cancellationToken)
+        public Task SendAsync(string message, CancellationToken cancellationToken)
         {
             return SendAsync(Encoding.UTF8.GetBytes(message), cancellationToken);
         }
@@ -69,12 +69,7 @@ namespace GLOKON.GuacWS.Server.Guac
             await stream.WriteAsync(message, 0, message.Length, cancellationToken);
         }
 
-        private void OnReceiveText(string message)
-        {
-            ReceiveText?.Invoke(this, message);
-        }
-
-        private async Task ReceiveUntilCloseAsync()
+        public async Task ReceiveUntilCloseAsync()
         {
             var buffer = ArrayPool<byte>.Shared.Rent(16384);
             try
@@ -85,19 +80,25 @@ namespace GLOKON.GuacWS.Server.Guac
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     int bytesReceived = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    OnReceiveText()
+
                     // TODO: Read and send events
                 }
             }
             catch (OperationCanceledException ocex) { }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
+                logger.LogError(ex, "[{0}] Error occurred during receiving from GuacD", Id);
                 await CloseAsync();
             }
             finally
             {
                 ArrayPool<byte>.Shared.Return(buffer);
             }
+        }
+
+        private void OnReceiveText(string message)
+        {
+            ReceiveText?.Invoke(this, message);
         }
     }
 }

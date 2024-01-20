@@ -8,6 +8,7 @@ using GLOKON.GuacWS.Server.Infrastructure;
 using GLOKON.GuacWS.Server.Services;
 using GLOKON.GuacWS.Server.Guac;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace GLOKON.GuacWS.Server.Middlewares
 {
@@ -15,16 +16,33 @@ namespace GLOKON.GuacWS.Server.Middlewares
     {
         #region Fields
         private readonly WebSocketConnectionsOptions options;
+        private readonly ILogger<WebSocketConnectionsMiddleware> webSocketMWLogger;
+        private readonly ILogger<WebSocketConnection> webSocketConnLogger;
+        private readonly ILogger<GuacDClient> guacDClientLogger;
+        private readonly ILogger<GuacConnection> guacConnLogger;
         private readonly WebSocketConnectionsProtocols protocols;
         private readonly GuacOptions guacOptions;
         private readonly IWebSocketConnectionsService connectionsService;
         #endregion
 
         #region Constructor
-        public WebSocketConnectionsMiddleware(RequestDelegate next, IOptions<WebSocketConnectionsOptions> options, IOptions<GuacOptions> guacOptions, WebSocketConnectionsProtocols protocols, IWebSocketConnectionsService connectionsService)
+        public WebSocketConnectionsMiddleware(
+            RequestDelegate next,
+            IOptions<WebSocketConnectionsOptions> options,
+            IOptions<GuacOptions> guacOptions,
+            ILogger<WebSocketConnectionsMiddleware> webSocketMWLogger,
+            ILogger<WebSocketConnection> webSocketConnLogger,
+            ILogger<GuacDClient> guacDClientLogger,
+            ILogger<GuacConnection> guacConnLogger,
+            WebSocketConnectionsProtocols protocols,
+            IWebSocketConnectionsService connectionsService)
         {
             this.options = options.Value;
             this.guacOptions = guacOptions.Value;
+            this.webSocketMWLogger = webSocketMWLogger;
+            this.webSocketConnLogger = webSocketConnLogger;
+            this.guacDClientLogger = guacDClientLogger;
+            this.guacConnLogger = guacConnLogger;
             this.protocols = protocols;
             this.connectionsService = connectionsService ?? throw new ArgumentNullException(nameof(connectionsService));
         }
@@ -45,28 +63,40 @@ namespace GLOKON.GuacWS.Server.Middlewares
                         DangerousEnableCompression = true
                     });
 
-                    using (WebSocketConnection webSocketConnection = new(webSocket, textSubProtocol ?? protocols.DefaultSubProtocol, options.SendSegmentSize, options.ReceivePayloadBufferSize))
-                    using (GuacDClient guacDClient = new(guacOptions.GuacD))
+                    Guid connectionId = Guid.NewGuid();
+                    using (WebSocketConnection webSocketConnection = new(connectionId, webSocket, textSubProtocol ?? protocols.DefaultSubProtocol, options.SendSegmentSize, options.ReceivePayloadBufferSize, webSocketConnLogger))
+                    using (GuacDClient guacDClient = new(connectionId, guacOptions.GuacD, guacDClientLogger))
                     {
                         connectionsService.AddConnection(webSocketConnection);
-                        GuacConnection guacConnection = new(webSocketConnection, guacDClient, guacOptions);
+                        GuacConnection guacConnection = new(webSocketConnection, guacDClient, guacOptions, guacConnLogger);
 
                         try
                         {
                             await guacConnection.StartAsync(context);
-                            await webSocketConnection.ReceiveMessagesUntilCloseAsync();
                         }
                         catch (Exception ex)
                         {
-                            // TODO: Log error
+                            webSocketMWLogger.LogError(ex, "[{0}] There was a problem starting the GuacD connection", connectionId);
+                        }
+
+                        try
+                        {
+                            await guacConnection.StopAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            webSocketMWLogger.LogError(ex, "[{0}] There was a problem stopping the GuacD connection", connectionId);
                         }
 
                         if (webSocketConnection.CloseStatus.HasValue)
                         {
                             await webSocket.CloseAsync(webSocketConnection.CloseStatus.Value, webSocketConnection.CloseStatusDescription, CancellationToken.None);
                         }
+                        else
+                        {
+                            await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, "There was a problem starting the GuacD connection", CancellationToken.None);
+                        }
 
-                        await guacConnection.StopAsync();
                         connectionsService.RemoveConnection(webSocketConnection.Id);
                     }
                 }
