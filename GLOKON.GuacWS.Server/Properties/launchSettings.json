@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "GLOKON.GuacWS.Server": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
