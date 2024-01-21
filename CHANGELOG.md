@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/glokon/guacws-next/compare/v1.0.0...v1.0.1) (2024-01-21)
+
+
+### Bug Fixes
+
+* **config:** fix default guacd config ([bb9222f](https://github.com/glokon/guacws-next/commit/bb9222fa7be1f1b774543d43d930fc2aa127148b))
+
 # 1.0.0 (2024-01-21)
 
 
