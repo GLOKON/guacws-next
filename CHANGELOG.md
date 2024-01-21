@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/glokon/guacws-next/compare/v1.0.3...v1.0.4) (2024-01-21)
+
+
+### Bug Fixes
+
+* **docker:** fix path ([bc76414](https://github.com/glokon/guacws-next/commit/bc764142613c34607dd1e3592489b656c2cb5e0d))
+
 ## [1.0.3](https://github.com/glokon/guacws-next/compare/v1.0.2...v1.0.3) (2024-01-21)
 
 
