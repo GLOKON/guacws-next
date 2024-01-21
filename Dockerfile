@@ -45,10 +45,10 @@ RUN mkdir -p /user-drives && chown -R guacd:guacd /user-drives
 # Specity user drive volume
 VOLUME /user-drives
 
-# Create app directory
+USER guacd
 WORKDIR /app
 
-COPY ./dist/ .
-COPY ./docker/ .
+COPY --chown=guacd:guacd ./dist/ .
+COPY --chown=guacd:guacd ./docker/ .
 
 CMD ["supervisord", "-c", "supervisor.conf"]
