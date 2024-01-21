@@ -1,3 +1,11 @@
+## [1.0.10](https://github.com/glokon/guacws-next/compare/v1.0.9...v1.0.10) (2024-01-21)
+
+
+### Bug Fixes
+
+* **app:** remove command runtime ID ([514c4b2](https://github.com/glokon/guacws-next/commit/514c4b24994bf759ba08c89b1d7bca81eaea2733))
+* **dotnet:** fix build ([7be325c](https://github.com/glokon/guacws-next/commit/7be325cae6db5f5dac12292f09a4da3d310932db))
+
 ## [1.0.9](https://github.com/glokon/guacws-next/compare/v1.0.8...v1.0.9) (2024-01-21)
 
 
