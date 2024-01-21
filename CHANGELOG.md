@@ -1,3 +1,10 @@
+## [1.0.9](https://github.com/glokon/guacws-next/compare/v1.0.8...v1.0.9) (2024-01-21)
+
+
+### Bug Fixes
+
+* **app:** mark as self-contained ([e33af21](https://github.com/glokon/guacws-next/commit/e33af21260a590164e9ef66a424672f8f2ecb861))
+
 ## [1.0.8](https://github.com/glokon/guacws-next/compare/v1.0.7...v1.0.8) (2024-01-21)
 
 
