@@ -7,14 +7,14 @@ namespace GLOKON.GuacWS.Server.Middlewares
 {
     internal class GuacOptions
     {
-        public GuacDOptions GuacD { get; set; }
+        public GuacDOptions GuacD { get; set; } = new GuacDOptions();
 
-        public string UserDriveRoot { get; set; }
+        public string UserDriveRoot { get; set; } = "/user-drives";
 
-        public CipherOptions Cipher { get; set; }
+        public CipherOptions Cipher { get; set; } = new CipherOptions();
 
-        public AllowedParameterOptions AllowedParameters { get; set; }
+        public AllowedParameterOptions AllowedParameters { get; set; } = new AllowedParameterOptions();
 
-        public int Timeout { get; set; }
+        public int Timeout { get; set; } = 10000;
     }
 }

@@ -7,6 +7,9 @@ using GLOKON.GuacWS.Server.Infrastructure;
 using GLOKON.GuacWS.Server.Services;
 using GLOKON.GuacWS.Server.Middlewares;
 using Microsoft.Extensions.Configuration;
+using GLOKON.GuacWS.Server.Cipher;
+using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
 
 namespace GLOKON.GuacWS.Server
 {
@@ -29,9 +32,31 @@ namespace GLOKON.GuacWS.Server
             {
                 SupportedSubProtocols = new List<ITextWebSocketSubprotocol>
                 {
-                    textWebSocketSubprotocol
+                    textWebSocketSubprotocol,
+                    new GuacamoleWebSocketSubprotocol(),
+                    new JsonWebSocketSubprotocol(),
                 },
                 DefaultSubProtocol = textWebSocketSubprotocol,
+            });
+            services.AddSingleton<SymmetricCipher>((services) =>
+            {
+                var options = services.GetRequiredService<IOptions<GuacOptions>>().Value;
+
+                switch (options.Cipher.Type)
+                {
+                    case CipherType.AES:
+                        return new SymmetricCipher(Aes.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                    case CipherType.DES:
+                        return new SymmetricCipher(DES.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                    case CipherType.RC2:
+                        return new SymmetricCipher(RC2.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                    case CipherType.Rijndael:
+                        return new SymmetricCipher(Rijndael.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                    case CipherType.TripleDES:
+                        return new SymmetricCipher(TripleDES.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                }
+
+                return null;
             });
             services.AddWebSocketConnections();
         }
@@ -56,7 +81,7 @@ namespace GLOKON.GuacWS.Server
             app.UseDefaultFiles()
                 .UseStaticFiles()
                 .UseWebSockets()
-                .MapWebSocketConnections("");
+                .MapWebSocketConnections("/ws");
         }
     }
 }

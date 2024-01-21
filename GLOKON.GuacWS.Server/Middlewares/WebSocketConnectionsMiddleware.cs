@@ -9,6 +9,8 @@ using GLOKON.GuacWS.Server.Services;
 using GLOKON.GuacWS.Server.Guac;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using System.Collections.Immutable;
+using GLOKON.GuacWS.Server.Cipher;
 
 namespace GLOKON.GuacWS.Server.Middlewares
 {
@@ -16,6 +18,8 @@ namespace GLOKON.GuacWS.Server.Middlewares
     {
         #region Fields
         private readonly WebSocketConnectionsOptions options;
+        private readonly RequestDelegate next;
+        private readonly SymmetricCipher cipher;
         private readonly ILogger<WebSocketConnectionsMiddleware> webSocketMWLogger;
         private readonly ILogger<WebSocketConnection> webSocketConnLogger;
         private readonly ILogger<GuacDClient> guacDClientLogger;
@@ -30,6 +34,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
             RequestDelegate next,
             IOptions<WebSocketConnectionsOptions> options,
             IOptions<GuacOptions> guacOptions,
+            SymmetricCipher cipher,
             ILogger<WebSocketConnectionsMiddleware> webSocketMWLogger,
             ILogger<WebSocketConnection> webSocketConnLogger,
             ILogger<GuacDClient> guacDClientLogger,
@@ -39,6 +44,8 @@ namespace GLOKON.GuacWS.Server.Middlewares
         {
             this.options = options.Value;
             this.guacOptions = guacOptions.Value;
+            this.next = next;
+            this.cipher = cipher;
             this.webSocketMWLogger = webSocketMWLogger;
             this.webSocketConnLogger = webSocketConnLogger;
             this.guacDClientLogger = guacDClientLogger;
@@ -56,6 +63,9 @@ namespace GLOKON.GuacWS.Server.Middlewares
                 if (ValidateOrigin(context))
                 {
                     ITextWebSocketSubprotocol textSubProtocol = NegotiateSubProtocol(context.WebSockets.WebSocketRequestedProtocols);
+                    Guid connectionId = Guid.NewGuid();
+
+                    webSocketMWLogger.LogDebug("[{0}] Received a new WS request", connectionId);
 
                     WebSocket webSocket = await context.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
                     {
@@ -63,16 +73,18 @@ namespace GLOKON.GuacWS.Server.Middlewares
                         DangerousEnableCompression = true
                     });
 
-                    Guid connectionId = Guid.NewGuid();
+                    webSocketMWLogger.LogDebug("[{0}] Accepted a new WS connection", connectionId);
+
                     using (WebSocketConnection webSocketConnection = new(connectionId, webSocket, textSubProtocol ?? protocols.DefaultSubProtocol, options.SendSegmentSize, options.ReceivePayloadBufferSize, webSocketConnLogger))
                     using (GuacDClient guacDClient = new(connectionId, guacOptions.GuacD, guacDClientLogger))
                     {
+                        webSocketMWLogger.LogInformation("[{0}] Starting a new GuacWS session", connectionId);
                         connectionsService.AddConnection(webSocketConnection);
-                        GuacConnection guacConnection = new(webSocketConnection, guacDClient, guacOptions, guacConnLogger);
+                        GuacConnection guacConnection = new(webSocketConnection, guacDClient, guacOptions, cipher, guacConnLogger);
 
                         try
                         {
-                            await guacConnection.StartAsync(context);
+                            await guacConnection.StartAsync(context.Request.Query.ToImmutableDictionary());
                         }
                         catch (Exception ex)
                         {
@@ -97,17 +109,19 @@ namespace GLOKON.GuacWS.Server.Middlewares
                             await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, "There was a problem starting the GuacD connection", CancellationToken.None);
                         }
 
+                        webSocketMWLogger.LogInformation("[{0}] Ending GuacWS session", connectionId);
                         connectionsService.RemoveConnection(webSocketConnection.Id);
                     }
                 }
                 else
                 {
+                    webSocketMWLogger.LogDebug("Blocked WS request from invalid origin: {0}", context.Request.Headers["Origin"]);
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 }
             }
             else
             {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await next.Invoke(context);
             }
         }
 

@@ -7,6 +7,6 @@ namespace GLOKON.GuacWS.Server.Guac
     {
         public HashSet<string> Global { get; set; } = new HashSet<string>();
 
-        public Dictionary<string, HashSet<string>> Connection { get; set; }
+        public Dictionary<string, HashSet<string>> Connection { get; set; } = new Dictionary<string, HashSet<string>>();
     }
 }

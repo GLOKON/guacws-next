@@ -2,15 +2,14 @@
 using GLOKON.GuacWS.Server.Guac.Parameters;
 using GLOKON.GuacWS.Server.Infrastructure;
 using GLOKON.GuacWS.Server.Middlewares;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -31,32 +30,17 @@ namespace GLOKON.GuacWS.Server.Guac
         private string guacDBuffer = string.Empty;
         private bool hasActivity;
         private bool handshakeReplySent;
-        private ConnectionProfile connectionProfile;
         private CancellationTokenSource cts;
 
-        public GuacConnection(WebSocketConnection webSocket, GuacDClient guacD, GuacOptions options, ILogger<GuacConnection> logger) {
+        public ConnectionType ProtocolType { get; private set; }
+        public Dictionary<string, string> Settings { get; private set; } = new Dictionary<string, string>();
+
+        public GuacConnection(WebSocketConnection webSocket, GuacDClient guacD, GuacOptions options, SymmetricCipher cipher, ILogger<GuacConnection> logger) {
             this.webSocket = webSocket;
             this.guacD = guacD;
             this.options = options;
+            this.cipher = cipher;
             this.logger = logger;
-            switch (options.Cipher.Type)
-            {
-                case CipherType.AES:
-                    cipher = new SymmetricCipher(Aes.Create(), options.Cipher.Mode, options.Cipher.BlockSize);
-                    break;
-                case CipherType.DES:
-                    cipher = new SymmetricCipher(DES.Create(), options.Cipher.Mode, options.Cipher.BlockSize);
-                    break;
-                case CipherType.RC2:
-                    cipher = new SymmetricCipher(RC2.Create(), options.Cipher.Mode, options.Cipher.BlockSize);
-                    break;
-                case CipherType.Rijndael:
-                    cipher = new SymmetricCipher(Rijndael.Create(), options.Cipher.Mode, options.Cipher.BlockSize);
-                    break;
-                case CipherType.TripleDES:
-                    cipher = new SymmetricCipher(TripleDES.Create(), options.Cipher.Mode, options.Cipher.BlockSize);
-                    break;
-            }
         }
 
         public void Dispose()
@@ -65,26 +49,21 @@ namespace GLOKON.GuacWS.Server.Guac
             webSocket.Dispose();
         }
 
-        public async Task StartAsync(HttpContext context)
+        public async Task StartAsync(IDictionary<string, StringValues> untrustedParams)
         {
             logger.LogDebug("[{0}] Starting GuacWS Connection", guacD.Id);
 
-            connectionProfile = ParseToken(context.Request.Query)?.Connection;
+            ParseToken(untrustedParams);
 
-            if (connectionProfile.Settings.TryGetValue("drive-path", out string userDrive))
-            {
-                connectionProfile.Settings["drive-path"] = CreateUserDrive(userDrive);
-            }
-
-            webSocket.ReceiveText += HandleWebSocketMessage;
-            guacD.ReceiveText += HandleGuacDMessage;
+            webSocket.ReceiveTextAsync += HandleWebSocketMessage;
+            guacD.ReceiveTextAsync += HandleGuacDMessage;
 
             await guacD.ConnectAsync();
 
             StartActivityMonitor(options.Timeout);
 
             // Send initial message
-            await SendOpCodeAsync(new string[] { "select", nameof(connectionProfile.Type).ToLower() });
+            await SendOpCodeAsync(new string[] { "select", ProtocolType.ToString().ToLower() });
 
             logger.LogDebug("[{0}] Started GuacWS Connection", guacD.Id);
 
@@ -97,15 +76,15 @@ namespace GLOKON.GuacWS.Server.Guac
         {
             logger.LogDebug("[{0}] Stopping GuacWS Connection", guacD.Id);
 
-            StopActivityMonitor();
+            webSocket.ReceiveTextAsync -= HandleWebSocketMessage;
+            guacD.ReceiveTextAsync -= HandleGuacDMessage;
 
-            webSocket.ReceiveText -= HandleWebSocketMessage;
-            guacD.ReceiveText -= HandleGuacDMessage;
+            StopActivityMonitor();
 
             await guacD.CloseAsync();
             await webSocket.CloseAsync();
 
-            if (connectionProfile.Settings.TryGetValue("drive-path", out string userDrive))
+            if (Settings.TryGetValue("drive-path", out string userDrive))
             {
                 DeleteUserDrive(userDrive);
             }
@@ -115,7 +94,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
         private string CreateUserDrive(string userPath)
         {
-            string finalUserPath = Path.Combine(options.UserDriveRoot, userPath);
+            string finalUserPath = Path.Combine(options.UserDriveRoot, userPath.TrimStart('/'));
 
             // Delete user path, start fresh
             DeleteUserDrive(finalUserPath);
@@ -132,7 +111,7 @@ namespace GLOKON.GuacWS.Server.Guac
             }
         }
 
-        private async Task HandleWebSocketMessage(object sender, string message)
+        private async Task HandleWebSocketMessage(string message)
         {
             UpdateActivity();
 
@@ -154,7 +133,7 @@ namespace GLOKON.GuacWS.Server.Guac
             }
         }
 
-        private async Task HandleGuacDMessage(object sender, string message)
+        private async Task HandleGuacDMessage(string message)
         {
             guacDBuffer += message;
             UpdateActivity();
@@ -165,7 +144,7 @@ namespace GLOKON.GuacWS.Server.Guac
                 string rawChunks = guacDBuffer.Substring(0,  endOfLastMessageIndex + 1);
                 guacDBuffer = guacDBuffer.Substring(endOfLastMessageIndex + 1);
 
-                foreach (string messageChunk in rawChunks.Split(";"))
+                foreach (string messageChunk in rawChunks.Split(";", StringSplitOptions.RemoveEmptyEntries))
                 {
                     string completeChunk = messageChunk + ";";
 
@@ -183,6 +162,8 @@ namespace GLOKON.GuacWS.Server.Guac
 
         private async Task SendHandshakeReplyAsync(string handshake)
         {
+            logger.LogDebug("[{0}] GUAC Handshake: {1}", webSocket.Id, handshake);
+
             await SendOpCodeAsync(new string[] {
                 "size",
                 GetConnectionSetting("width"),
@@ -199,13 +180,20 @@ namespace GLOKON.GuacWS.Server.Guac
 
             foreach (string  parameterRequest in parameterRequests)
             {
-                string parameter = parameterRequest;
-                if (parameterRequest.StartsWith("VERSION_"))
+                string parameter = ParseOpCode(parameterRequest);
+                if (parameter.StartsWith("VERSION_"))
                 {
                     parameter = "protocol_version";
                 }
 
-                parameterReplies.Add(GetConnectionSetting(parameter));
+                if (parameter == "args")
+                {
+                    parameterReplies.Add("connect");
+                }
+                else
+                {
+                    parameterReplies.Add(GetConnectionSetting(parameter));
+                }
             }
 
             await SendOpCodeAsync(parameterReplies.ToArray());
@@ -215,49 +203,79 @@ namespace GLOKON.GuacWS.Server.Guac
 
         private string GetConnectionSetting(string parameter)
         {
-            return connectionProfile.Settings.GetValueOrDefault(parameter, null);
+            return Settings.GetValueOrDefault(parameter, null);
         }
 
-        private GuacToken ParseToken(IQueryCollection query)
+        private string ParseOpCode(string parameter)
         {
-            if (!query.TryGetValue("token", out StringValues values))
+            return parameter.Substring(parameter.IndexOf(".") + 1);
+        }
+
+        private GuacToken ParseToken(IDictionary<string, StringValues> untrustedParams)
+        {
+            if (!untrustedParams.TryGetValue("token", out StringValues values))
             {
                 throw new ArgumentNullException("token", "Token is missing from the query string");
             }
 
-            string tokenValue = Encoding.UTF8.GetString(Convert.FromBase64String(values.ToString()));
-            GuacToken parsedToken = JsonSerializer.Deserialize<GuacToken>(tokenValue);
-
-            ISet<string> allowedQueryParams = new HashSet<string>();
-
-            if (options.AllowedParameters != null)
+            // Decrypt the token and parse it
+            var serializeOptions = new JsonSerializerOptions
             {
-                string connectionType = nameof(parsedToken.Connection.Type).ToLower();
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            };
+            string encryptedTokenValue = Encoding.UTF8.GetString(Convert.FromBase64String(values.ToString()));
+            EncryptedToken parsedEncryptedToken = JsonSerializer.Deserialize<EncryptedToken>(encryptedTokenValue, serializeOptions);
+            string tokenValue = cipher.Decrypt(Convert.FromBase64String(parsedEncryptedToken.Value), Convert.FromBase64String(parsedEncryptedToken.IV));
+            GuacToken parsedToken = JsonSerializer.Deserialize<GuacToken>(tokenValue, serializeOptions);
 
-                if (options.AllowedParameters.Global != null)
+            // Add parameters from the token
+            ProtocolType = parsedToken.Connection.Type;
+            parsedToken.Connection.Settings
+                .ToList()
+                .ForEach(param =>
                 {
-                    allowedQueryParams.UnionWith(options.AllowedParameters.Global);
-                }
-
-                if (options.AllowedParameters.Connection != null &&
-                    options.AllowedParameters.Connection.TryGetValue(connectionType, out HashSet<string> allowedConnParams))
-                {
-                    allowedQueryParams.UnionWith(allowedConnParams);
-                }
-            }
+                    switch (param.Value.ValueKind)
+                    {
+                        case JsonValueKind.Null:
+                            Settings.Add(param.Key, null);
+                            break;
+                        case JsonValueKind.False:
+                            Settings.Add(param.Key, "false");
+                            break;
+                        case JsonValueKind.True:
+                            Settings.Add(param.Key, "true");
+                            break;
+                        default:
+                            Settings.Add(param.Key, param.Value.ToString());
+                            break;
+                    }
+                });
 
             // Add parameters that are not in the token, if permitted
-            query
-                .Where(queryPair =>
+            ISet<string> allowedUntrustedParams = options.AllowedParameters.Global;
+            string connectionType = parsedToken.Connection.Type.ToString().ToLower();
+
+            if (options.AllowedParameters.Connection.TryGetValue(connectionType, out HashSet<string> allowedConnParams))
+            {
+                allowedUntrustedParams.UnionWith(allowedConnParams);
+            }
+
+            untrustedParams
+                .Where(param =>
                 {
                     // Token is a reserved keyword
-                    return queryPair.Key != "token" && allowedQueryParams.Contains(queryPair.Key);
+                    return param.Key != "token" && allowedUntrustedParams.Contains(param.Key);
                 })
                 .ToList()
-                .ForEach(queryPair => 
+                .ForEach(param => 
                 {
-                    parsedToken.Connection.Settings[queryPair.Key] = queryPair.Value.ToString();
+                    Settings[param.Key] = param.Value.ToString();
                 });
+
+            if (Settings.TryGetValue("drive-path", out string userDrive))
+            {
+                Settings["drive-path"] = CreateUserDrive(userDrive);
+            }
 
             return parsedToken;
         }
@@ -291,6 +309,7 @@ namespace GLOKON.GuacWS.Server.Guac
             catch (Exception ex)
             {
                 logger.LogError(ex, "[{0}] Problem sending to GuacD", guacD.Id);
+                await StopAsync();
             }
         }
 
@@ -304,6 +323,7 @@ namespace GLOKON.GuacWS.Server.Guac
             catch (Exception ex)
             {
                 logger.LogError(ex, "[{0}] Problem sending to WebSocket", webSocket.Id);
+                await StopAsync();
             }
         }
 
@@ -324,7 +344,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
             Task.Run(async () =>
             {
-                while (!cts.IsCancellationRequested)
+                while (cts != null && !cts.IsCancellationRequested)
                 {
                     await Task.Delay(timeout);
 

@@ -4,7 +4,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Net.WebSockets;
-using GLOKON.GuacWS.Server.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GLOKON.GuacWS.Server.Infrastructure
@@ -18,7 +17,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 
         private readonly WebSocket _webSocket;
         private readonly ITextWebSocketSubprotocol _textSubProtocol;
-        private readonly CancellationTokenSource _cancellationTokenSource;
+        private readonly CancellationTokenSource cts;
         #endregion
 
         #region Properties
@@ -30,9 +29,11 @@ namespace GLOKON.GuacWS.Server.Infrastructure
         #endregion
 
         #region Events
-        public event EventHandler<string> ReceiveText;
+        public delegate Task ReceiveAsync<T>(T e);
 
-        public event EventHandler<byte[]> ReceiveBinary;
+        public ReceiveAsync<string> ReceiveTextAsync;
+
+        public ReceiveAsync<byte[]> ReceiveBinaryAsync;
         #endregion
 
         #region Constructor
@@ -44,14 +45,22 @@ namespace GLOKON.GuacWS.Server.Infrastructure
             _sendSegmentSize = sendSegmentSize;
             _receivePayloadBufferSize = receivePayloadBufferSize;
             this.logger = logger;
-            _cancellationTokenSource = new CancellationTokenSource();
+            cts = new CancellationTokenSource();
         }
         #endregion
 
         #region Methods
+        public void Dispose()
+        {
+            logger.LogDebug("[{0}] Cleaning up WS connection", Id);
+            cts.Cancel();
+            cts.Dispose();
+        }
+
         public Task CloseAsync()
         {
-            _cancellationTokenSource.Cancel();
+            logger.LogDebug("[{0}] Disconnecting WS connection", Id);
+            cts.Cancel();
             return Task.CompletedTask;
         }
 
@@ -69,28 +78,27 @@ namespace GLOKON.GuacWS.Server.Infrastructure
         {
             try
             {
-                var cancellationToken = _cancellationTokenSource.Token;
                 byte[] receivePayloadBuffer = new byte[_receivePayloadBufferSize];
-                WebSocketReceiveResult webSocketReceiveResult = await _webSocket.ReceiveAsync(new ArraySegment<byte>(receivePayloadBuffer), cancellationToken);
-                while (webSocketReceiveResult.MessageType != WebSocketMessageType.Close && !cancellationToken.IsCancellationRequested)
+                WebSocketReceiveResult webSocketReceiveResult = await _webSocket.ReceiveAsync(new ArraySegment<byte>(receivePayloadBuffer), cts.Token);
+                while (webSocketReceiveResult.MessageType != WebSocketMessageType.Close && !cts.IsCancellationRequested)
                 {
-                    byte[] webSocketMessage = await ReceiveMessagePayloadAsync(webSocketReceiveResult, receivePayloadBuffer, cancellationToken);
+                    byte[] webSocketMessage = await ReceiveMessagePayloadAsync(webSocketReceiveResult, receivePayloadBuffer, cts.Token);
                     if (webSocketReceiveResult.MessageType == WebSocketMessageType.Binary)
                     {
-                        OnReceiveBinaryAsync(webSocketMessage);
+                        await OnReceiveBinaryAsync(webSocketMessage);
                     }
                     else
                     {
-                        OnReceiveTextAsync(Encoding.UTF8.GetString(webSocketMessage));
+                        await OnReceiveTextAsync(Encoding.UTF8.GetString(webSocketMessage));
                     }
 
-                    webSocketReceiveResult = await _webSocket.ReceiveAsync(new ArraySegment<byte>(receivePayloadBuffer), cancellationToken);
+                    webSocketReceiveResult = await _webSocket.ReceiveAsync(new ArraySegment<byte>(receivePayloadBuffer), cts.Token);
                 }
 
                 CloseStatus = webSocketReceiveResult.CloseStatus.Value;
                 CloseStatusDescription = webSocketReceiveResult.CloseStatusDescription;
             }
-            catch (OperationCanceledException ocex)
+            catch (OperationCanceledException)
             {
                 CloseStatus = WebSocketCloseStatus.NormalClosure;
                 CloseStatusDescription = "WebSocket was requested to close";
@@ -183,18 +191,18 @@ namespace GLOKON.GuacWS.Server.Infrastructure
         {
             string message = _textSubProtocol.Read(webSocketMessage);
 
-            await ReceiveTextAsync(this, message);
+            if (ReceiveTextAsync != null)
+            {
+                await ReceiveTextAsync(message);
+            }
         }
 
         private async Task OnReceiveBinaryAsync(byte[] webSocketMessage)
         {
-            await ReceiveBinaryAsync(this, webSocketMessage);
-        }
-
-        public void Dispose()
-        {
-            _cancellationTokenSource.Cancel();
-            _cancellationTokenSource.Dispose();
+            if (ReceiveBinaryAsync != null)
+            {
+                await ReceiveBinaryAsync(webSocketMessage);
+            }
         }
         #endregion
     }

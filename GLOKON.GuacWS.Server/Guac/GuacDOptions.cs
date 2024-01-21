@@ -2,16 +2,16 @@
 {
     internal class GuacDOptions
     {
-        public string Host { get; set; }
+        public string Host { get; set; } = "127.0.0.1";
 
-        public ushort Port { get; set; }
+        public ushort Port { get; set; } = 4822;
 
-        public int SendBufferSize { get; set; }
+        public int SendBufferSize { get; set; } = 4096;
 
-        public int ReceiveBufferSize { get; set; }
+        public int ReceiveBufferSize { get; set; } = 4096;
 
-        public int SendTimeout { get; set; }
+        public int SendTimeout { get; set; } = 1000;
 
-        public int ReceiveTimeout { get; set; }
+        public int ReceiveTimeout { get; set; } = 0;
     }
 }
