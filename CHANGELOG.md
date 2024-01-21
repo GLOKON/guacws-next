@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/glokon/guacws-next/compare/v1.0.4...v1.0.5) (2024-01-21)
+
+
+### Bug Fixes
+
+* **docker:** fix running server ([bf94c39](https://github.com/glokon/guacws-next/commit/bf94c39ecfd54642e65b4d282c6df5d5fea01406))
+
 ## [1.0.4](https://github.com/glokon/guacws-next/compare/v1.0.3...v1.0.4) (2024-01-21)
 
 
