@@ -1,0 +1,7 @@
+*.log
+*.pdb
+appsettings.*.json
+.gitignore
+.releaserc.yml
+Dockerfile
+.github/

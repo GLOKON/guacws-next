@@ -1,0 +1,46 @@
+name: Build
+on:
+  push:
+    branches:
+      - '**'
+      - '!master'
+env:
+  IMAGE_NAME: ${{ github.repository }}
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 'lts/*'
+        cache: 'npm'
+        cache-dependency-path: '**/package-lock.json'
+    - uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '7.0.x'
+        cache: true
+    - name: Install dependencies
+      run: npx ci
+    - name: Build Server
+      run: dotnet publish -r linux-x64 --self-contained false -p:PublishSingleFile=true -o ./dist -c Release
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+    - name: Build
+      uses: docker/build-push-action@v5
+      with:
+        push: false
+        tags: glokon/guacws-next:latest

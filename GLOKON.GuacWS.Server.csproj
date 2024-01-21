@@ -5,6 +5,7 @@
     <StartupObject>GLOKON.GuacWS.Server.Program</StartupObject>
     <Title>GLOKON GuacD WebSocket Server</Title>
     <PackageProjectUrl>https://www.qassist.io/</PackageProjectUrl>
+    <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />

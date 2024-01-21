@@ -1,0 +1,33 @@
+{
+  "name": "@glokon/guacws-next",
+  "description": "Fast WebSocket/Guacamole proxy server",
+  "version": "0.0.0-development",
+  "author": {
+    "name": "Daniel McAssey",
+    "email": "hello@glokon.me"
+  },
+  "keywords": [
+    "guacamole",
+    "rdp",
+    "vnc",
+    "remote desktop",
+    "docker"
+  ],
+  "devDependencies": {
+    "@codedependant/semantic-release-docker": "^4.5.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^9.2.6"
+  },
+  "bugs": {
+    "url": "https://github.com/glokon/guacws-next/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/glokon/guacws-next.git"
+  },
+  "homepage": "https://github.com/glokon/guacws-next",
+  "license": "UNLICENSED",
+  "private": true
+}
