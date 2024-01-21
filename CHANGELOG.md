@@ -1,3 +1,11 @@
+## [1.0.8](https://github.com/glokon/guacws-next/compare/v1.0.7...v1.0.8) (2024-01-21)
+
+
+### Bug Fixes
+
+* **dotnet:** improve build ([cfe164b](https://github.com/glokon/guacws-next/commit/cfe164b145499bbe521fb77bc8f602b382a77b97))
+* **dotnet:** make app self-contained ([2f9ca30](https://github.com/glokon/guacws-next/commit/2f9ca306c8ffc37ac4773dd097c6271b175b9af6))
+
 ## [1.0.7](https://github.com/glokon/guacws-next/compare/v1.0.6...v1.0.7) (2024-01-21)
 
 
