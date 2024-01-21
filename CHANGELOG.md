@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/glokon/guacws-next/compare/v1.0.5...v1.0.6) (2024-01-21)
+
+
+### Bug Fixes
+
+* **docker:** fix supervisor permission ([7030223](https://github.com/glokon/guacws-next/commit/7030223d11f9ff65198edd67a2dc64c135723477))
+
 ## [1.0.5](https://github.com/glokon/guacws-next/compare/v1.0.4...v1.0.5) (2024-01-21)
 
 
