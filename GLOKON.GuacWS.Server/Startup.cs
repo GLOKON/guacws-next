@@ -78,10 +78,10 @@ namespace GLOKON.GuacWS.Server
             // TODO: Figure out a way to make this conditional if Kestrel is configured with SSL
             //app.UseHttpsRedirection();
 
-            app.UseDefaultFiles()
-                .UseStaticFiles()
-                .UseWebSockets()
-                .MapWebSocketConnections("/ws");
+            app.UseWebSockets()
+                .UseWebSocketConnectionMiddleware()
+                .UseDefaultFiles()
+                .UseStaticFiles();
         }
     }
 }

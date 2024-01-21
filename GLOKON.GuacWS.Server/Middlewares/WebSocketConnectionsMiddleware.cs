@@ -56,7 +56,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
         #endregion
 
         #region Methods
-        public async Task Invoke(HttpContext context)
+        public async Task InvokeAsync(HttpContext context)
         {
             if (context.WebSockets.IsWebSocketRequest)
             {
