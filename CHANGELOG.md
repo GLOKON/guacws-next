@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/glokon/guacws-next/compare/v1.0.2...v1.0.3) (2024-01-21)
+
+
+### Bug Fixes
+
+* **docker:** add missing file ([d235bcf](https://github.com/glokon/guacws-next/commit/d235bcf05180170af97ba3404d51969c3b66ea14))
+
 ## [1.0.2](https://github.com/glokon/guacws-next/compare/v1.0.1...v1.0.2) (2024-01-21)
 
 
