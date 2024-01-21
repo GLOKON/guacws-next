@@ -5,3 +5,4 @@ appsettings.*.json
 .releaserc.yml
 Dockerfile
 .github/
+package*.json

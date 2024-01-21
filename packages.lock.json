@@ -9,6 +9,11 @@
         "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
       }
     },
+    "net7.0/linux-arm64": {},
+    "net7.0/linux-bionic-arm64": {},
+    "net7.0/linux-musl-arm64": {},
+    "net7.0/linux-musl-x64": {},
+    "net7.0/linux-x64": {},
     "net7.0/win-x64": {}
   }
 }
