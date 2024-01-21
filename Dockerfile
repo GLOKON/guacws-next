@@ -49,5 +49,6 @@ VOLUME /user-drives
 WORKDIR /app
 
 COPY ./dist/ .
+COPY ./docker/ .
 
 CMD ["supervisord", "-c", "supervisor.conf"]
