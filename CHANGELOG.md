@@ -1,0 +1,22 @@
+# 1.0.0 (2024-01-21)
+
+
+### Bug Fixes
+
+* **app:** finish tunnel ([a333041](https://github.com/glokon/guacws-next/commit/a333041475c35f91e113cf3ac739982b640dbe0b))
+* **app:** ignore non-standard settings from git ([72af553](https://github.com/glokon/guacws-next/commit/72af553d19f745bf801352f55c6c7ba930823ffd))
+* **app:** remove development settings ([506b0db](https://github.com/glokon/guacws-next/commit/506b0db03adfaa03a44f5d0fc6b9ce5367e60455))
+* **app:** simplify directory structure ([5ef8c71](https://github.com/glokon/guacws-next/commit/5ef8c7150673413eee45418266618d6dbe08d799))
+* **app:** update WebSocket middleware to catch all routes ([aff9516](https://github.com/glokon/guacws-next/commit/aff9516474f92f5f7ffd2018382b07ee23e876d3))
+* **ci:** fix missing lock file ([8728809](https://github.com/glokon/guacws-next/commit/8728809f10ff58a989fd583a5f5f8c44a82bd838))
+* **ci:** specify build ([09051f7](https://github.com/glokon/guacws-next/commit/09051f773405688ca6e428e8107afb2a7c462d12))
+
+
+### Features
+
+* **guacws-next:** initial release ([3b0c773](https://github.com/glokon/guacws-next/commit/3b0c773708a184e02f6e70bb4bdad570c069b6c7))
+
+
+### BREAKING CHANGES
+
+* **guacws-next:** Initial release of guacws-next
