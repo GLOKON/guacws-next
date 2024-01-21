@@ -29,7 +29,7 @@ jobs:
     - name: Install dependencies
       run: npx ci
     - name: Build Server
-      run: dotnet publish -r linux-x64 -o ./dist -c Release ./GLOKON.GuacWS.Server.csproj
+      run: dotnet publish -o ./dist -c Release ./GLOKON.GuacWS.Server.csproj
     - name: Extract metadata (tags, labels) for Docker
       id: meta
       uses: docker/metadata-action@v5
