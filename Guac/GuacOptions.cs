@@ -11,8 +11,6 @@ namespace GLOKON.GuacWS.Server.Middlewares
 
         public string UserDriveRoot { get; set; } = "/user-drives";
 
-        public CipherOptions Cipher { get; set; } = new CipherOptions();
-
         public AllowedParameterOptions AllowedParameters { get; set; } = new AllowedParameterOptions();
 
         public int Timeout { get; set; } = 10000;

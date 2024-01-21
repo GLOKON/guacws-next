@@ -24,8 +24,9 @@ namespace GLOKON.GuacWS.Server
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.Configure<WebSocketConnectionsOptions>(Configuration.GetRequiredSection(nameof(WebSocketConnectionsOptions)));
-            services.Configure<GuacOptions>(Configuration.GetRequiredSection(nameof(GuacOptions)));
+            services.Configure<CipherOptions>(Configuration.GetRequiredSection("Cipher"));
+            services.Configure<WebSocketConnectionsOptions>(Configuration.GetRequiredSection("WebSocket"));
+            services.Configure<GuacOptions>(Configuration.GetRequiredSection("Guac"));
 
             ITextWebSocketSubprotocol textWebSocketSubprotocol = new PlainTextWebSocketSubprotocol();
             services.AddSingleton(new WebSocketConnectionsProtocols
@@ -38,22 +39,22 @@ namespace GLOKON.GuacWS.Server
                 },
                 DefaultSubProtocol = textWebSocketSubprotocol,
             });
-            services.AddSingleton<SymmetricCipher>((services) =>
+            services.AddSingleton((services) =>
             {
-                var options = services.GetRequiredService<IOptions<GuacOptions>>().Value;
+                var options = services.GetRequiredService<IOptions<CipherOptions>>().Value;
 
-                switch (options.Cipher.Type)
+                switch (options.Type)
                 {
                     case CipherType.AES:
-                        return new SymmetricCipher(Aes.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                        return new SymmetricCipher(Aes.Create(), options.Key, options.Mode, options.KeySize);
                     case CipherType.DES:
-                        return new SymmetricCipher(DES.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                        return new SymmetricCipher(DES.Create(), options.Key, options.Mode, options.KeySize);
                     case CipherType.RC2:
-                        return new SymmetricCipher(RC2.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                        return new SymmetricCipher(RC2.Create(), options.Key, options.Mode, options.KeySize);
                     case CipherType.Rijndael:
-                        return new SymmetricCipher(Rijndael.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                        return new SymmetricCipher(Rijndael.Create(), options.Key, options.Mode, options.KeySize);
                     case CipherType.TripleDES:
-                        return new SymmetricCipher(TripleDES.Create(), options.Cipher.Key, options.Cipher.Mode, options.Cipher.KeySize);
+                        return new SymmetricCipher(TripleDES.Create(), options.Key, options.Mode, options.KeySize);
                 }
 
                 return null;
