@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/glokon/guacws-next/compare/v1.0.1...v1.0.2) (2024-01-21)
+
+
+### Bug Fixes
+
+* **config:** simplify config ([8d8d5ab](https://github.com/glokon/guacws-next/commit/8d8d5ab701d60c4656c3bb49df94fe30f6e29bbe))
+
 ## [1.0.1](https://github.com/glokon/guacws-next/compare/v1.0.0...v1.0.1) (2024-01-21)
 
 
