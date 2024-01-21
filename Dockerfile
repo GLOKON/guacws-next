@@ -34,6 +34,7 @@ LABEL maintainer="Daniel McAssey <hello at glokon dot me>" \
       org.opencontainers.image.version=$GIT_TAG \
       org.opencontainers.image.authors="Daniel McAssey <hello at glokon dot me>"
 
+ENV LOG_LEVEL='info'
 ENV Logging__LogLevel__Default='Information'
 ENV GuacOptions__UserDriveRoot='/user-drives'
 EXPOSE 8080
