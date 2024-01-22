@@ -1,3 +1,10 @@
+## [1.0.13](https://github.com/glokon/guacws-next/compare/v1.0.12...v1.0.13) (2024-01-22)
+
+
+### Bug Fixes
+
+* **app:** tweak settings to bind ([17474b0](https://github.com/glokon/guacws-next/commit/17474b0b29e7648da2ea8ac87979b872c115e070))
+
 ## [1.0.12](https://github.com/glokon/guacws-next/compare/v1.0.11...v1.0.12) (2024-01-22)
 
 
