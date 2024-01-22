@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore;
+﻿using GLOKON.GuacWS.Server.Logger;
+using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 
 namespace GLOKON.GuacWS.Server
 {
@@ -9,16 +11,29 @@ namespace GLOKON.GuacWS.Server
     {
         public static void Main(string[] args)
         {
-            var  app = CreateWebHostBuilder(args).Build();
+            var  builder = WebHost.CreateDefaultBuilder<Startup>(args)
+                .SuppressStatusMessages(true)
+                .UseUrls();
+
+            builder.ConfigureLogging((logBuilder) =>
+            {
+                logBuilder.AddConsoleFormatter<WebConsoleFormatter, SimpleConsoleFormatterOptions>((options) =>
+                {
+                    options.SingleLine = true;
+                    options.IncludeScopes = false;
+                    options.ColorBehavior = LoggerColorBehavior.Default;
+                    options.TimestampFormat = "dd/MM/yyyy HH:mm:ss ";
+                });
+                logBuilder.AddConsole((options) =>
+                {
+                    options.FormatterName = "webconsole";
+                });
+            });
+
+            var app = builder.Build();
             var logger = app.Services.GetService<ILogger<Program>>();
             logger.LogInformation("GuacWS Server is now running");
             app.Run();
         }
-        
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .SuppressStatusMessages(true)
-                .UseUrls()
-                .UseStartup<Startup>();
     }
 }
