@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/glokon/guacws-next/compare/v1.1.0...v1.1.1) (2024-01-22)
+
+
+### Bug Fixes
+
+* **websocket:** use pipelines for websockets by default ([ebec567](https://github.com/glokon/guacws-next/commit/ebec5679ca12cbbeeaa245e01f616a6ac8ed3861))
+
 # [1.1.0](https://github.com/glokon/guacws-next/compare/v1.0.15...v1.1.0) (2024-01-22)
 
 
