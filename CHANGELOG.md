@@ -1,3 +1,10 @@
+## [1.0.12](https://github.com/glokon/guacws-next/compare/v1.0.11...v1.0.12) (2024-01-22)
+
+
+### Bug Fixes
+
+* **app:** add ICU library ([3fb4b8b](https://github.com/glokon/guacws-next/commit/3fb4b8bcee17b8c3b97cbcf50d0c8dfa9e6de525))
+
 ## [1.0.11](https://github.com/glokon/guacws-next/compare/v1.0.10...v1.0.11) (2024-01-22)
 
 
