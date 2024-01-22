@@ -13,7 +13,7 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <PublishReadyToRun>true</PublishReadyToRun>
     <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
-    <RuntimeIdentifiers>linux-x64;linux-musl-x64;linux-musl-arm64;linux-arm64;linux-bionic-arm64;</RuntimeIdentifiers>
+    <RuntimeIdentifier>linux-musl-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <DebugSymbols>False</DebugSymbols>

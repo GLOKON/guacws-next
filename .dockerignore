@@ -6,3 +6,6 @@ appsettings.*.json
 Dockerfile
 .github/
 package*.json
+package.json
+package-lock.json
+packages.lock.json
