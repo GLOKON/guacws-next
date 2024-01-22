@@ -28,17 +28,6 @@ namespace GLOKON.GuacWS.Server
             services.Configure<WebSocketConnectionsOptions>(Configuration.GetRequiredSection("WebSocket"));
             services.Configure<GuacOptions>(Configuration.GetRequiredSection("Guac"));
 
-            ITextWebSocketSubprotocol textWebSocketSubprotocol = new PlainTextWebSocketSubprotocol();
-            services.AddSingleton(new WebSocketConnectionsProtocols
-            {
-                SupportedSubProtocols = new List<ITextWebSocketSubprotocol>
-                {
-                    textWebSocketSubprotocol,
-                    new GuacamoleWebSocketSubprotocol(),
-                    new JsonWebSocketSubprotocol(),
-                },
-                DefaultSubProtocol = textWebSocketSubprotocol,
-            });
             services.AddSingleton((services) =>
             {
                 var options = services.GetRequiredService<IOptions<CipherOptions>>().Value;

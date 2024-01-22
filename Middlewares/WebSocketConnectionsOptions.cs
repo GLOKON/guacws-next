@@ -5,15 +5,14 @@ namespace GLOKON.GuacWS.Server.Middlewares
 {
     internal class WebSocketConnectionsOptions
     {
-        public HashSet<string> AllowedOrigins { get; set; }
+        public HashSet<string> AllowedOrigins { get; set; } = new HashSet<string>();
 
-        public int? SendSegmentSize { get; set; }
+        public bool UseCompression { get; set; } = false;
 
-        public int ReceivePayloadBufferSize { get; set; }
+        public bool UsePipelines { get; set; } = true;
 
-        public WebSocketConnectionsOptions()
-        {
-            ReceivePayloadBufferSize = 4 * 1024;
-        }
+        public int SendSegmentSize { get; set; } = 4 * 1024;
+
+        public int ReceivePayloadBufferSize { get; set; } = 4 * 1024;
     }
 }

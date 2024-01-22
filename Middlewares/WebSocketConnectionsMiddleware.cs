@@ -16,7 +16,6 @@ namespace GLOKON.GuacWS.Server.Middlewares
 {
     internal class WebSocketConnectionsMiddleware
     {
-        #region Fields
         private readonly WebSocketConnectionsOptions options;
         private readonly RequestDelegate next;
         private readonly SymmetricCipher cipher;
@@ -24,12 +23,9 @@ namespace GLOKON.GuacWS.Server.Middlewares
         private readonly ILogger<WebSocketConnection> webSocketConnLogger;
         private readonly ILogger<GuacDClient> guacDClientLogger;
         private readonly ILogger<GuacConnection> guacConnLogger;
-        private readonly WebSocketConnectionsProtocols protocols;
         private readonly GuacOptions guacOptions;
         private readonly IWebSocketConnectionsService connectionsService;
-        #endregion
 
-        #region Constructor
         public WebSocketConnectionsMiddleware(
             RequestDelegate next,
             IOptions<WebSocketConnectionsOptions> options,
@@ -39,7 +35,6 @@ namespace GLOKON.GuacWS.Server.Middlewares
             ILogger<WebSocketConnection> webSocketConnLogger,
             ILogger<GuacDClient> guacDClientLogger,
             ILogger<GuacConnection> guacConnLogger,
-            WebSocketConnectionsProtocols protocols,
             IWebSocketConnectionsService connectionsService)
         {
             this.options = options.Value;
@@ -50,32 +45,28 @@ namespace GLOKON.GuacWS.Server.Middlewares
             this.webSocketConnLogger = webSocketConnLogger;
             this.guacDClientLogger = guacDClientLogger;
             this.guacConnLogger = guacConnLogger;
-            this.protocols = protocols;
             this.connectionsService = connectionsService ?? throw new ArgumentNullException(nameof(connectionsService));
         }
-        #endregion
 
-        #region Methods
         public async Task InvokeAsync(HttpContext context)
         {
             if (context.WebSockets.IsWebSocketRequest)
             {
                 if (ValidateOrigin(context))
                 {
-                    ITextWebSocketSubprotocol textSubProtocol = NegotiateSubProtocol(context.WebSockets.WebSocketRequestedProtocols);
                     Guid connectionId = Guid.NewGuid();
 
                     webSocketMWLogger.LogDebug("[{0}] Received a new WS request", connectionId);
 
                     WebSocket webSocket = await context.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
                     {
-                        SubProtocol = textSubProtocol?.SubProtocol,
-                        DangerousEnableCompression = true
+                        SubProtocol = "guacamole",
+                        DangerousEnableCompression = options.UseCompression
                     });
 
                     webSocketMWLogger.LogDebug("[{0}] Accepted a new WS connection", connectionId);
 
-                    using (WebSocketConnection webSocketConnection = new(connectionId, webSocket, textSubProtocol ?? protocols.DefaultSubProtocol, options.SendSegmentSize, options.ReceivePayloadBufferSize, webSocketConnLogger))
+                    using (WebSocketConnection webSocketConnection = new(connectionId, webSocket, options.UseCompression, options.UsePipelines, options.SendSegmentSize, options.ReceivePayloadBufferSize, webSocketConnLogger))
                     using (GuacDClient guacDClient = new(connectionId, guacOptions.GuacD, guacDClientLogger))
                     {
                         webSocketMWLogger.LogInformation("[{0}] Starting a new GuacWS session", connectionId);
@@ -102,11 +93,11 @@ namespace GLOKON.GuacWS.Server.Middlewares
 
                         if (webSocketConnection.CloseStatus.HasValue)
                         {
-                            await webSocket.CloseAsync(webSocketConnection.CloseStatus.Value, webSocketConnection.CloseStatusDescription, CancellationToken.None);
+                            await webSocket.CloseOutputAsync(webSocketConnection.CloseStatus.Value, webSocketConnection.CloseStatusDescription, CancellationToken.None);
                         }
                         else
                         {
-                            await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, "There was a problem starting the GuacD connection", CancellationToken.None);
+                            await webSocket.CloseOutputAsync(WebSocketCloseStatus.InternalServerError, "There was a problem starting the GuacD connection", CancellationToken.None);
                         }
 
                         webSocketMWLogger.LogInformation("[{0}] Ending GuacWS session", connectionId);
@@ -129,22 +120,5 @@ namespace GLOKON.GuacWS.Server.Middlewares
         {
             return (options.AllowedOrigins == null) || (options.AllowedOrigins.Count == 0) || (options.AllowedOrigins.Contains(context.Request.Headers["Origin"].ToString()));
         }
-
-        private ITextWebSocketSubprotocol NegotiateSubProtocol(IList<string> requestedSubProtocols)
-        {
-            ITextWebSocketSubprotocol subProtocol = null;
-
-            foreach (ITextWebSocketSubprotocol supportedSubProtocol in protocols.SupportedSubProtocols)
-            {
-                if (requestedSubProtocols.Contains(supportedSubProtocol.SubProtocol))
-                {
-                    subProtocol = supportedSubProtocol;
-                    break;
-                }
-            }
-
-            return subProtocol;
-        }
-        #endregion
     }
 }

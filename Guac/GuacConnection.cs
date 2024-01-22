@@ -148,7 +148,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
         private async Task SendHandshakeReplyAsync(string handshake)
         {
-            logger.LogDebug("[{0}] GUAC Handshake: {1}", webSocket.Id, handshake);
+            logger.LogTrace("[{0}] GUAC Handshake: {1}", webSocket.Id, handshake);
 
             await SendOpCodeAsync(new string[] {
                 "size",
@@ -269,7 +269,7 @@ namespace GLOKON.GuacWS.Server.Guac
         private async Task SendOpCodeAsync(string[] parameters)
         {
             string formattedOpCode = FormatOpCode(parameters);
-            logger.LogDebug("[{0}] Sending Guac Operation: {1}", guacD.Id, formattedOpCode);
+            logger.LogTrace("[{0}] Sending Guac Operation: {1}", guacD.Id, formattedOpCode);
             await guacD.SendAsync(formattedOpCode, CancellationToken.None);
         }
 
@@ -289,7 +289,7 @@ namespace GLOKON.GuacWS.Server.Guac
         {
             try
             {
-                logger.LogDebug("[{0}] WS >> GUAC: {1}", guacD.Id, message);
+                logger.LogTrace("[{0}] WS >> GUAC: {1}", guacD.Id, message);
                 await guacD.SendAsync(message, cancellationToken);
             }
             catch (Exception ex)
@@ -303,7 +303,7 @@ namespace GLOKON.GuacWS.Server.Guac
         {
             try
             {
-                logger.LogDebug("[{0}] GUAC >> WS: {1}", webSocket.Id, message);
+                logger.LogTrace("[{0}] GUAC >> WS: {1}", webSocket.Id, message);
                 await webSocket.SendAsync(message, cancellationToken);
             }
             catch (Exception ex)
