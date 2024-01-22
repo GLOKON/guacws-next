@@ -1,3 +1,11 @@
+## [1.0.11](https://github.com/glokon/guacws-next/compare/v1.0.10...v1.0.11) (2024-01-22)
+
+
+### Bug Fixes
+
+* **app:** fix runtime identifier ([3d64c4b](https://github.com/glokon/guacws-next/commit/3d64c4bf06b142a0e7ce67151915df21a2277c4b))
+* **app:** update to target docker image ([52edc74](https://github.com/glokon/guacws-next/commit/52edc74b4ab4f69a5f93e3c5b69978f5f4f0dbe6))
+
 ## [1.0.10](https://github.com/glokon/guacws-next/compare/v1.0.9...v1.0.10) (2024-01-21)
 
 
