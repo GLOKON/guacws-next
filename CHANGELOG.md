@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/glokon/guacws-next/compare/v1.0.15...v1.1.0) (2024-01-22)
+
+
+### Features
+
+* **performance:** improve performance from reading/writing from GuacD ([70be15e](https://github.com/glokon/guacws-next/commit/70be15e2d9ffc4511655f60a33c854abb27a3b79))
+
 ## [1.0.15](https://github.com/glokon/guacws-next/compare/v1.0.14...v1.0.15) (2024-01-22)
 
 
