@@ -1,3 +1,10 @@
+## [1.0.15](https://github.com/glokon/guacws-next/compare/v1.0.14...v1.0.15) (2024-01-22)
+
+
+### Bug Fixes
+
+* **app:** update logging ([2265265](https://github.com/glokon/guacws-next/commit/2265265f467ccd5a67604b96ddbbb9e39752cfed))
+
 ## [1.0.14](https://github.com/glokon/guacws-next/compare/v1.0.13...v1.0.14) (2024-01-22)
 
 
