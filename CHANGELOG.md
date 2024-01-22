@@ -1,3 +1,10 @@
+## [1.0.14](https://github.com/glokon/guacws-next/compare/v1.0.13...v1.0.14) (2024-01-22)
+
+
+### Bug Fixes
+
+* **app:** remove default ssl endpoint ([183d8f9](https://github.com/glokon/guacws-next/commit/183d8f9899918c8a2e158bd1ed0bd577a3a3db25))
+
 ## [1.0.13](https://github.com/glokon/guacws-next/compare/v1.0.12...v1.0.13) (2024-01-22)
 
 
