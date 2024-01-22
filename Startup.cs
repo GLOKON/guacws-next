@@ -24,7 +24,6 @@ namespace GLOKON.GuacWS.Server
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.Configure<ConsoleLifetimeOptions>(opts => opts.SuppressStatusMessages = true);
             services.Configure<CipherOptions>(Configuration.GetRequiredSection("Cipher"));
             services.Configure<WebSocketConnectionsOptions>(Configuration.GetRequiredSection("WebSocket"));
             services.Configure<GuacOptions>(Configuration.GetRequiredSection("Guac"));
