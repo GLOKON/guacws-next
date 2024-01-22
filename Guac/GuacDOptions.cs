@@ -13,5 +13,7 @@
         public int SendTimeout { get; set; } = 1000;
 
         public int ReceiveTimeout { get; set; } = 0;
+
+        public bool UsePipelines { get; set; } = true;
     }
 }

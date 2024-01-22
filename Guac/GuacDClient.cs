@@ -2,6 +2,7 @@
 using System;
 using System.Buffers;
 using System.IO;
+using System.IO.Pipelines;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -11,6 +12,7 @@ namespace GLOKON.GuacWS.Server.Guac
 {
     internal class GuacDClient: IDisposable
     {
+        private const byte DataDelimiter = 0x3b; // Represents ';' in UTF8
         private readonly GuacDOptions options;
         private readonly ILogger<GuacDClient> logger;
         private readonly TcpClient client;
@@ -74,16 +76,117 @@ namespace GLOKON.GuacWS.Server.Guac
 
         public async Task ReceiveUntilCloseAsync()
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(16384);
-            try
+            if (options.UsePipelines)
             {
+                logger.LogDebug("[{0}] Using pipelines for GuacD client", Id);
+
+                var pipe = new Pipe();
+                Task writing = FillPipeAsync(stream, pipe.Writer);
+                Task reading = ProcessPipeAsync(pipe.Reader);
+
+                await Task.WhenAll(reading, writing);
+
+                pipe.Reset();
+            }
+            else
+            {
+                logger.LogDebug("[{0}] Using buffers for GuacD client", Id);
+
+                var buffer = ArrayPool<byte>.Shared.Rent(options.ReceiveBufferSize * 4);
+                int bufferHeadIndex = 0;
+
                 while (!cts.IsCancellationRequested)
                 {
-                    int bytesReceived = await stream.ReadAsync(buffer, 0, buffer.Length);
+                    try
+                    {
+                        int bytesReceived = await stream.ReadAsync(buffer, bufferHeadIndex, (buffer.Length - bufferHeadIndex), cts.Token);
+
+                        if (bytesReceived > 0)
+                        {
+                            int totalReadSize = bytesReceived + bufferHeadIndex;
+                            int lastEndingIndex = Array.LastIndexOf(buffer, DataDelimiter, (totalReadSize - 1));
+                            int nextDataIndex = 0;
+
+                            if (lastEndingIndex != -1)
+                            {
+                                nextDataIndex = lastEndingIndex + 1;
+
+                                try
+                                {
+                                    await OnReceiveText(Encoding.UTF8.GetString(buffer, 0, nextDataIndex));
+                                }
+                                catch (Exception ex)
+                                {
+                                    logger.LogError(ex, "[{0}] There was a problem handling the GuacD message", Id);
+                                }
+                            }
+
+                            int remainderSize = totalReadSize - nextDataIndex;
+                            if (remainderSize > 0)
+                            {
+                                // Copy remainder to backing buffer
+                                Buffer.BlockCopy(buffer, nextDataIndex, buffer, 0, remainderSize);
+                                bufferHeadIndex = remainderSize;
+                            }
+                            else
+                            {
+                                bufferHeadIndex = 0;
+                            }
+                        }
+                        else
+                        {
+                            // 0 bytes received, we are at end of stream
+                            await CloseAsync();
+                        }
+                    }
+                    catch (OperationCanceledException) { }
+                    catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
+                    {
+                        logger.LogError(ex, "[{0}] Error occurred during receiving from GuacD", Id);
+                        await CloseAsync();
+                    }
+                }
+
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+
+        private bool TryReadMessage(ref ReadOnlySequence<byte> buffer, out string message)
+        {
+            SequencePosition? position = buffer.PositionOf(DataDelimiter);
+
+            if (position == null)
+            {
+                message = default;
+                return false;
+            }
+
+            SequencePosition nextDataStart = buffer.GetPosition(1, position.Value);
+            message = Encoding.UTF8.GetString(buffer.Slice(0, nextDataStart));
+            buffer = buffer.Slice(nextDataStart);
+            return true;
+        }
+
+        private async Task FillPipeAsync(NetworkStream stream, PipeWriter writer)
+        {
+            while (!cts.IsCancellationRequested)
+            {
+                Memory<byte> memory = writer.GetMemory(options.ReceiveBufferSize);
+
+                try
+                {
+                    int bytesReceived = await stream.ReadAsync(memory);
 
                     if (bytesReceived > 0)
                     {
-                        await OnReceiveText(Encoding.UTF8.GetString(buffer, 0, bytesReceived));
+                        writer.Advance(bytesReceived);
+
+                        FlushResult result = await writer.FlushAsync();
+
+                        if (result.IsCompleted)
+                        {
+                            await CloseAsync();
+                        }
                     }
                     else
                     {
@@ -91,17 +194,54 @@ namespace GLOKON.GuacWS.Server.Guac
                         await CloseAsync();
                     }
                 }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
+                {
+                    logger.LogError(ex, "[{0}] Error occurred during receiving from GuacD", Id);
+                    await CloseAsync();
+                }
             }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
+
+            await writer.CompleteAsync();
+        }
+
+        private async Task ProcessPipeAsync(PipeReader reader)
+        {
+            while (!cts.IsCancellationRequested)
             {
-                logger.LogError(ex, "[{0}] Error occurred during receiving from GuacD", Id);
-                await CloseAsync();
+                try
+                {
+                    ReadResult result = await reader.ReadAsync();
+                    ReadOnlySequence<byte> buffer = result.Buffer;
+
+                    while (TryReadMessage(ref buffer, out string message))
+                    {
+                        try
+                        {
+                            await OnReceiveText(message);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, "[{0}] There was a problem handling the GuacD message", Id);
+                        }
+                    }
+
+                    reader.AdvanceTo(buffer.Start, buffer.End);
+
+                    if (result.IsCompleted)
+                    {
+                        await CloseAsync();
+                    }
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
+                {
+                    logger.LogError(ex, "[{0}] Error occurred during processing from GuacD", Id);
+                    await CloseAsync();
+                }
             }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
+
+            await reader.CompleteAsync();
         }
 
         private async Task OnReceiveText(string message)

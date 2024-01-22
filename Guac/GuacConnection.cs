@@ -27,7 +27,6 @@ namespace GLOKON.GuacWS.Server.Guac
         private readonly ConcurrentQueue<string> pendingWebSocketMessages = new ConcurrentQueue<string>();
         private readonly ConcurrentQueue<string> pendingGuacDMessages = new ConcurrentQueue<string>();
 
-        private string guacDBuffer = string.Empty;
         private bool hasActivity;
         private bool handshakeReplySent;
         private CancellationTokenSource cts;
@@ -135,28 +134,15 @@ namespace GLOKON.GuacWS.Server.Guac
 
         private async Task HandleGuacDMessage(string message)
         {
-            guacDBuffer += message;
             UpdateActivity();
 
-            int endOfLastMessageIndex = guacDBuffer.LastIndexOf(";");
-            if (endOfLastMessageIndex != -1)
+            if (handshakeReplySent)
             {
-                string rawChunks = guacDBuffer.Substring(0,  endOfLastMessageIndex + 1);
-                guacDBuffer = guacDBuffer.Substring(endOfLastMessageIndex + 1);
-
-                foreach (string messageChunk in rawChunks.Split(";", StringSplitOptions.RemoveEmptyEntries))
-                {
-                    string completeChunk = messageChunk + ";";
-
-                    if (handshakeReplySent)
-                    {
-                        await SendToWebSocket(completeChunk, CancellationToken.None);
-                    }
-                    else
-                    {
-                        await SendHandshakeReplyAsync(completeChunk);
-                    }
-                }
+                await SendToWebSocket(message, CancellationToken.None);
+            }
+            else
+            {
+                await SendHandshakeReplyAsync(message);
             }
         }
 
