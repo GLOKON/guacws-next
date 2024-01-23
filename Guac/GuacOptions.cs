@@ -15,6 +15,8 @@ namespace GLOKON.GuacWS.Server.Middlewares
 
         public bool LogTraceMessages { get; set; } = false;
 
+        public int ProcessingBufferSize { get; set; } = 4096;
+
         public int Timeout { get; set; } = 10000;
     }
 }
