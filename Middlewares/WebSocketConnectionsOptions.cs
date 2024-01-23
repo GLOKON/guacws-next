@@ -9,10 +9,8 @@ namespace GLOKON.GuacWS.Server.Middlewares
 
         public bool UseCompression { get; set; } = false;
 
-        public bool UsePipelines { get; set; } = true;
+        public int ReceiveBufferSize { get; set; } = 4 * 1024;
 
-        public int SendSegmentSize { get; set; } = 4 * 1024;
-
-        public int ReceivePayloadBufferSize { get; set; } = 4 * 1024;
+        public int CloseTimeout { get; set; } = 1500;
     }
 }

@@ -66,10 +66,9 @@ namespace GLOKON.GuacWS.Server.Middlewares
 
                     webSocketMWLogger.LogDebug("[{0}] Accepted a new WS connection", connectionId);
 
-                    using (WebSocketConnection webSocketConnection = new(connectionId, webSocket, options.UseCompression, options.UsePipelines, options.SendSegmentSize, options.ReceivePayloadBufferSize, webSocketConnLogger))
+                    using (WebSocketConnection webSocketConnection = new(connectionId, webSocket, options, webSocketConnLogger))
                     using (GuacDClient guacDClient = new(connectionId, guacOptions.GuacD, guacDClientLogger))
                     {
-                        webSocketMWLogger.LogInformation("[{0}] Starting a new GuacWS session", connectionId);
                         connectionsService.AddConnection(webSocketConnection);
                         GuacConnection guacConnection = new(webSocketConnection, guacDClient, guacOptions, cipher, guacConnLogger);
 
@@ -89,15 +88,6 @@ namespace GLOKON.GuacWS.Server.Middlewares
                         catch (Exception ex)
                         {
                             webSocketMWLogger.LogError(ex, "[{0}] There was a problem stopping the GuacD connection", connectionId);
-                        }
-
-                        if (webSocketConnection.CloseStatus.HasValue)
-                        {
-                            await webSocket.CloseOutputAsync(webSocketConnection.CloseStatus.Value, webSocketConnection.CloseStatusDescription, CancellationToken.None);
-                        }
-                        else
-                        {
-                            await webSocket.CloseOutputAsync(WebSocketCloseStatus.InternalServerError, "There was a problem starting the GuacD connection", CancellationToken.None);
                         }
 
                         webSocketMWLogger.LogInformation("[{0}] Ending GuacWS session", connectionId);

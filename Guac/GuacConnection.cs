@@ -5,11 +5,15 @@ using GLOKON.GuacWS.Server.Middlewares;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
+using System.IO.Pipelines;
 using System.Linq;
+using System.Net.WebSockets;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -24,8 +28,7 @@ namespace GLOKON.GuacWS.Server.Guac
         private readonly GuacOptions options;
         private readonly ILogger<GuacConnection> logger;
         private readonly SymmetricCipher cipher;
-        private readonly ConcurrentQueue<string> pendingWebSocketMessages = new ConcurrentQueue<string>();
-        private readonly ConcurrentQueue<string> pendingGuacDMessages = new ConcurrentQueue<string>();
+        private readonly ConcurrentQueue<byte[]> pendingWebSocketMessages = new ConcurrentQueue<byte[]>();
 
         private bool hasActivity;
         private bool handshakeReplySent;
@@ -54,9 +57,6 @@ namespace GLOKON.GuacWS.Server.Guac
 
             ParseToken(untrustedParams);
 
-            webSocket.ReceiveTextAsync += HandleWebSocketMessage;
-            guacD.ReceiveTextAsync += HandleGuacDMessage;
-
             await guacD.ConnectAsync();
 
             StartActivityMonitor(options.Timeout);
@@ -66,22 +66,29 @@ namespace GLOKON.GuacWS.Server.Guac
 
             logger.LogDebug("[{0}] Started GuacWS Connection", guacD.Id);
 
-            Task guacRx = guacD.ReceiveUntilCloseAsync();
-            Task wsRx = webSocket.ReceiveUntilCloseAsync();
-            await Task.WhenAny(guacRx, wsRx);
+            await Task.WhenAny(
+                guacD.RunUntilCloseAsync(),
+                ProcessGuacD(guacD.Input),
+                webSocket.RunUntilCloseAsync(),
+                ProcessWebSocket(webSocket.Input));
         }
 
-        public async Task StopAsync()
+        public async Task StopAsync(bool isErrored = false, string? message = null)
         {
             logger.LogDebug("[{0}] Stopping GuacWS Connection", guacD.Id);
-
-            webSocket.ReceiveTextAsync -= HandleWebSocketMessage;
-            guacD.ReceiveTextAsync -= HandleGuacDMessage;
 
             StopActivityMonitor();
 
             await guacD.CloseAsync();
-            await webSocket.CloseAsync();
+
+            if (isErrored)
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, message);
+            }
+            else
+            {
+                await webSocket.CloseAsync();
+            }
 
             if (Settings.TryGetValue("drive-path", out string userDrive))
             {
@@ -110,7 +117,75 @@ namespace GLOKON.GuacWS.Server.Guac
             }
         }
 
-        private async Task HandleWebSocketMessage(string message)
+        private async Task ProcessWebSocket(PipeReader reader)
+        {
+            while (await reader.ReadAsync() is ReadResult result && !result.IsCompleted)
+            {
+                try
+                {
+                    ReadOnlySequence<byte> buffer = result.Buffer;
+
+                    await HandleWebSocketMessage(buffer.ToArray());
+
+                    reader.AdvanceTo(buffer.End, buffer.End);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
+                {
+                    logger.LogError(ex, "[{0}] Error occurred during processing from GuacD", guacD.Id);
+                    break;
+                }
+            }
+        }
+
+        private async Task ProcessGuacD(PipeReader reader)
+        {
+            while (await reader.ReadAsync() is ReadResult result && !result.IsCompleted)
+            {
+                try
+                {
+                    ReadOnlySequence<byte> buffer = result.Buffer;
+
+                    while (TryReadGuacDMessage(ref buffer, out byte[] message))
+                    {
+                        try
+                        {
+                            await HandleGuacDMessage(message);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, "[{0}] There was a problem handling the GuacD message", guacD.Id);
+                        }
+                    }
+
+                    reader.AdvanceTo(buffer.Start, buffer.End);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
+                {
+                    logger.LogError(ex, "[{0}] Error occurred during processing from GuacD", guacD.Id);
+                    break;
+                }
+            }
+        }
+
+
+        private bool TryReadGuacDMessage(ref ReadOnlySequence<byte> buffer, out byte[] message)
+        {
+            // TODO: For more performance, this should get the last position of delimiter
+            SequencePosition? position = buffer.PositionOf(GuacDClient.DataDelimiter);
+
+            if (position == null)
+            {
+                message = default;
+                return false;
+            }
+
+            SequencePosition nextDataStart = buffer.GetPosition(1, position.Value);
+            message = buffer.Slice(0, nextDataStart).ToArray();
+            buffer = buffer.Slice(nextDataStart);
+            return true;
+        }
+
+        private async Task HandleWebSocketMessage(byte[] message)
         {
             UpdateActivity();
 
@@ -118,7 +193,7 @@ namespace GLOKON.GuacWS.Server.Guac
             {
                 while (pendingWebSocketMessages.Count > 0)
                 {
-                    if (pendingWebSocketMessages.TryDequeue(out string pendingMessage))
+                    if (pendingWebSocketMessages.TryDequeue(out byte[] pendingMessage))
                     {
                         await SendToGuacD(pendingMessage, CancellationToken.None);
                     }
@@ -132,7 +207,7 @@ namespace GLOKON.GuacWS.Server.Guac
             }
         }
 
-        private async Task HandleGuacDMessage(string message)
+        private async Task HandleGuacDMessage(byte[] message)
         {
             UpdateActivity();
 
@@ -142,7 +217,7 @@ namespace GLOKON.GuacWS.Server.Guac
             }
             else
             {
-                await SendHandshakeReplyAsync(message);
+                await SendHandshakeReplyAsync(Encoding.UTF8.GetString(message));
             }
         }
 
@@ -285,31 +360,39 @@ namespace GLOKON.GuacWS.Server.Guac
             return string.Join(",", formattedOpCodes) + ";";
         }
 
-        private async Task SendToGuacD(string message, CancellationToken cancellationToken)
+        private async Task SendToGuacD(byte[] message, CancellationToken cancellationToken)
         {
             try
             {
-                logger.LogTrace("[{0}] WS >> GUAC: {1}", guacD.Id, message);
-                await guacD.SendAsync(message, cancellationToken);
+                if (options.LogTraceMessages)
+                {
+                    logger.LogTrace("[{0}] WS >> GUAC: {1}", guacD.Id, Encoding.UTF8.GetString(message));
+                }
+
+                await guacD.Output.WriteAsync(message, cancellationToken);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "[{0}] Problem sending to GuacD", guacD.Id);
-                await StopAsync();
+                await StopAsync(true, "There was a problem sending to GuacD");
             }
         }
 
-        private async Task SendToWebSocket(string message, CancellationToken cancellationToken)
+        private async Task SendToWebSocket(byte[] message, CancellationToken cancellationToken)
         {
             try
             {
-                logger.LogTrace("[{0}] GUAC >> WS: {1}", webSocket.Id, message);
-                await webSocket.SendAsync(message, cancellationToken);
+                if (options.LogTraceMessages)
+                {
+                    logger.LogTrace("[{0}] GUAC >> WS: {1}", webSocket.Id, Encoding.UTF8.GetString(message));
+                }
+
+                await webSocket.Output.WriteAsync(message, cancellationToken);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "[{0}] Problem sending to WebSocket", webSocket.Id);
-                await StopAsync();
+                await StopAsync(true, "There was a problem sending to WebSocket");
             }
         }
 
@@ -336,7 +419,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
                     if (!hasActivity)
                     {
-                        await StopAsync();
+                        await StopAsync(true, "There was no activity within the specified timeout");
                     }
 
                     hasActivity = false;

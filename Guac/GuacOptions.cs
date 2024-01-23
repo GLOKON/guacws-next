@@ -13,6 +13,8 @@ namespace GLOKON.GuacWS.Server.Middlewares
 
         public AllowedParameterOptions AllowedParameters { get; set; } = new AllowedParameterOptions();
 
+        public bool LogTraceMessages { get; set; } = false;
+
         public int Timeout { get; set; } = 10000;
     }
 }
