@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/glokon/guacws-next/compare/v1.1.1...v1.2.0) (2024-01-23)
+
+
+### Features
+
+* **performance:** use pipelines all the way from websocket <-> guacd for the best speed possible ([fc9e2c9](https://github.com/glokon/guacws-next/commit/fc9e2c99ffb65a6672a957a4804a6111ab7a94e6))
+
 ## [1.1.1](https://github.com/glokon/guacws-next/compare/v1.1.0...v1.1.1) (2024-01-22)
 
 
