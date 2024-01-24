@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +23,9 @@ namespace GLOKON.GuacWS.Server
 
         public void ConfigureServices(IServiceCollection services)
         {
+            var serverSection = Configuration.GetRequiredSection("Server");
+            ServerOptions serverOptions = serverSection.Get<ServerOptions>();
+            services.Configure<ServerOptions>(serverSection);
             services.Configure<CipherOptions>(Configuration.GetRequiredSection("Cipher"));
             services.Configure<WebSocketConnectionsOptions>(Configuration.GetRequiredSection("WebSocket"));
             services.Configure<GuacOptions>(Configuration.GetRequiredSection("Guac"));
@@ -49,9 +51,20 @@ namespace GLOKON.GuacWS.Server
                 return null;
             });
             services.AddWebSocketConnections();
+
+            if (serverOptions.LetsEncrypt.IsEnabled())
+            {
+                services.AddLettuceEncrypt(options =>
+                {
+                    options.AcceptTermsOfService = true;
+                    options.DomainNames = serverOptions.LetsEncrypt.Domains.ToArray();
+                    options.EmailAddress = serverOptions.LetsEncrypt.EmailAddress;
+                    options.UseStagingServer = serverOptions.LetsEncrypt.UseStagingServer;
+                });
+            }
         }
 
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IOptions<LetsEncryptOptions> letsEncrypt)
         {
             if (env.IsDevelopment())
             {
@@ -60,13 +73,17 @@ namespace GLOKON.GuacWS.Server
             else
             {
                 app.UseExceptionHandler("/error");
-
-                // TODO: Figure out a way to make this conditional if Kestrel is configured with SSL
-                //app.UseHsts();
             }
 
-            // TODO: Figure out a way to make this conditional if Kestrel is configured with SSL
-            //app.UseHttpsRedirection();
+            if (letsEncrypt.Value is LetsEncryptOptions options && options.IsEnabled())
+            {
+                if (options.UseHsts)
+                {
+                    app.UseHsts();
+                }
+
+                app.UseHttpsRedirection();
+            }
 
             app.UseWebSockets()
                 .UseWebSocketConnectionMiddleware()

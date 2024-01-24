@@ -1,0 +1,15 @@
+﻿namespace GLOKON.GuacWS.Server.Infrastructure
+{
+    public class ServerOptions
+    {
+        public string ListenOn { get; set; } = "0.0.0.0";
+
+        public ushort HttpPort { get; set; } = 8080;
+
+        public ushort HttpsPort { get; set; } = 8081;
+
+        public LetsEncryptOptions LetsEncrypt { get; set; } = new LetsEncryptOptions();
+
+        public SslOptions SSL { get; set; } = new SslOptions();
+    }
+}

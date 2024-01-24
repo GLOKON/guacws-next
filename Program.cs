@@ -1,9 +1,13 @@
-﻿using GLOKON.GuacWS.Server.Logger;
+﻿using GLOKON.GuacWS.Server.Infrastructure;
+using GLOKON.GuacWS.Server.Logger;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
+using System.Net;
 
 namespace GLOKON.GuacWS.Server
 {
@@ -13,7 +17,36 @@ namespace GLOKON.GuacWS.Server
         {
             var  builder = WebHost.CreateDefaultBuilder<Startup>(args)
                 .SuppressStatusMessages(true)
-                .ConfigureKestrel(options => options.AddServerHeader = false)
+                .ConfigureKestrel((context, kestrelOptions) =>
+                {
+                    kestrelOptions.AddServerHeader = false;
+
+                    var serverOptionsVal = kestrelOptions.ApplicationServices.GetRequiredService<IOptions<ServerOptions>>();
+                    if (serverOptionsVal.Value is ServerOptions serverOptions)
+                    {
+                        IPAddress listenAddress = IPAddress.Parse(serverOptions.ListenOn);
+                        kestrelOptions.Listen(listenAddress, serverOptions.HttpPort);
+
+                        if (serverOptions.LetsEncrypt.IsEnabled())
+                        {
+                            kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
+                            {
+                                listenOptions.UseHttps(httpsOptions =>
+                                {
+                                    httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
+                                    httpsOptions.UseLettuceEncrypt(kestrelOptions.ApplicationServices);
+                                });
+                            });
+                        }
+                        else if (serverOptions.SSL.IsEnabled())
+                        {
+                            kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
+                            {
+                                listenOptions.UseHttps(serverOptions.SSL.CertificatePath, serverOptions.SSL.CertificatePassword);
+                            });
+                        }
+                    }
+                })
                 .UseUrls();
 
             builder.ConfigureLogging((logBuilder) =>
