@@ -13,6 +13,7 @@ namespace GLOKON.GuacWS.Server
         {
             var  builder = WebHost.CreateDefaultBuilder<Startup>(args)
                 .SuppressStatusMessages(true)
+                .ConfigureKestrel(options => options.AddServerHeader = false)
                 .UseUrls();
 
             builder.ConfigureLogging((logBuilder) =>
