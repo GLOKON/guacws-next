@@ -1,3 +1,10 @@
+## [1.2.6](https://github.com/glokon/guacws-next/compare/v1.2.5...v1.2.6) (2024-01-24)
+
+
+### Bug Fixes
+
+* **server:** make guacws-next as fast as possible, removed almost all allocations ([1fa47bb](https://github.com/glokon/guacws-next/commit/1fa47bb2c52fd280209b39f67590b3ed936d69c7))
+
 ## [1.2.5](https://github.com/glokon/guacws-next/compare/v1.2.4...v1.2.5) (2024-01-24)
 
 
