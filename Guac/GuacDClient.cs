@@ -71,35 +71,24 @@ namespace GLOKON.GuacWS.Server.Guac
             inputPipe.Reset();
         }
 
-        public Task SendAsync(string message, CancellationToken cancellationToken)
-        {
-            return SendAsync(Encoding.UTF8.GetBytes(message), cancellationToken);
-        }
-
-        public async Task SendAsync(byte[] message, CancellationToken cancellationToken)
-        {
-            await stream.WriteAsync(message, 0, message.Length, cancellationToken);
-        }
-
         public async Task RunUntilCloseAsync()
         {
             logger.LogDebug("[{0}] Using pipelines for GuacD", Id);
 
-            while (!cts.IsCancellationRequested)
+            try
             {
-                Memory<byte> memory = inputPipe.Writer.GetMemory(options.ReceiveBufferSize);
-
-                try
+                while (!cts.IsCancellationRequested)
                 {
+                    Memory<byte> memory = inputPipe.Writer.GetMemory(options.ReceiveBufferSize);
+
                     int bytesReceived = await stream.ReadAsync(memory);
 
                     if (bytesReceived > 0)
                     {
                         inputPipe.Writer.Advance(bytesReceived);
 
-                        FlushResult result = await inputPipe.Writer.FlushAsync();
-
-                        if (result.IsCompleted)
+                        FlushResult result = await inputPipe.Writer.FlushAsync(cts.Token);
+                        if (result.IsCompleted || result.IsCanceled)
                         {
                             break;
                         }
@@ -110,15 +99,11 @@ namespace GLOKON.GuacWS.Server.Guac
                         break;
                     }
                 }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
-                {
-                    logger.LogError(ex, "[{0}] Error occurred during receiving from GuacD", Id);
-                    break;
-                }
+            }
+            catch (OperationCanceledException) {}
+            catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
+            {
+                logger.LogError(ex, "[{0}] Error occurred during receiving from GuacD", Id);
             }
 
             await CloseAsync();
