@@ -1,3 +1,10 @@
+## [1.2.5](https://github.com/glokon/guacws-next/compare/v1.2.4...v1.2.5) (2024-01-24)
+
+
+### Bug Fixes
+
+* **server:** fix server not using Hsts ([b3328fb](https://github.com/glokon/guacws-next/commit/b3328fb9ea3b005b01f29805bbff76a679f29601))
+
 ## [1.2.4](https://github.com/glokon/guacws-next/compare/v1.2.3...v1.2.4) (2024-01-24)
 
 
