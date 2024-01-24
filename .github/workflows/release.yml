@@ -8,6 +8,19 @@ on:
 env:
   NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 jobs:
+  build-all:
+    strategy:
+      matrix:
+        rid: [win-x64, win-arm64, linux-x64, linux-arm64, linux-musl-x64, linux-musl-arm64]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build Server (${{ matrix.rid }})
+      run: dotnet publish -r ${{ matrix.rid }} -o ./dist/${{ matrix.rid }} -c Release ./GLOKON.GuacWS.Server.csproj
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.rid }}
+        path: dist/${{ matrix.rid }}
   release:
     runs-on: ubuntu-latest
     steps:
@@ -30,7 +43,7 @@ jobs:
         cache: true
     - name: Install dependencies
       run: npx ci
-    - name: Build Server
+    - name: Build Server for Container
       run: dotnet publish -r linux-musl-x64 -o ./dist -c Release ./GLOKON.GuacWS.Server.csproj
     - name: Extract metadata (tags, labels) for Docker
       id: meta

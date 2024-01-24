@@ -4,15 +4,21 @@ using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
+using System.Collections.Generic;
 using System.Net;
 
 namespace GLOKON.GuacWS.Server
 {
     public class Program
     {
+        private static ILogger<Program> logger;
+
+        private static Queue<string> queuedLogMessages = new Queue<string>();
+
         public static void Main(string[] args)
         {
             var  builder = WebHost.CreateDefaultBuilder<Startup>(args)
@@ -22,28 +28,53 @@ namespace GLOKON.GuacWS.Server
                     kestrelOptions.AddServerHeader = false;
 
                     var serverOptionsVal = kestrelOptions.ApplicationServices.GetRequiredService<IOptions<ServerOptions>>();
+
                     if (serverOptionsVal.Value is ServerOptions serverOptions)
                     {
-                        IPAddress listenAddress = IPAddress.Parse(serverOptions.ListenOn);
-                        kestrelOptions.Listen(listenAddress, serverOptions.HttpPort);
+                        if (!string.IsNullOrEmpty(serverOptions.ListenOn))
+                        {
+                            IPAddress listenAddress = IPAddress.Parse(serverOptions.ListenOn);
+                            kestrelOptions.Listen(listenAddress, serverOptions.HttpPort);
+                            LogMessage(string.Format("Listening (HTTP): http://{0}:{1}", listenAddress.ToString(), serverOptions.HttpPort));
 
-                        if (serverOptions.LetsEncrypt.IsEnabled())
-                        {
-                            kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
+                            if (serverOptions.LetsEncrypt.IsEnabled())
                             {
-                                listenOptions.UseHttps(httpsOptions =>
+                                kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
                                 {
-                                    httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
-                                    httpsOptions.UseLettuceEncrypt(kestrelOptions.ApplicationServices);
+                                    listenOptions.UseHttps(httpsOptions =>
+                                    {
+                                        httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
+                                        httpsOptions.UseLettuceEncrypt(kestrelOptions.ApplicationServices);
+                                    });
                                 });
-                            });
-                        }
-                        else if (serverOptions.SSL.IsEnabled())
-                        {
-                            kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
+
+                                LogMessage(string.Format("Listening (LetsEncrypt): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort));
+                            }
+                            else if (serverOptions.SSL.IsEnabled())
                             {
-                                listenOptions.UseHttps(serverOptions.SSL.CertificatePath, serverOptions.SSL.CertificatePassword);
-                            });
+                                kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
+                                {
+                                    listenOptions.UseHttps(serverOptions.SSL.CertificatePath, serverOptions.SSL.CertificatePassword);
+                                });
+
+                                LogMessage(string.Format("Listening (SSL): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort));
+                            }
+                            else if (context.HostingEnvironment.IsDevelopment())
+                            {
+                                // Use development certificate
+                                kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
+                                {
+                                    listenOptions.UseHttps();
+                                });
+
+                                LogMessage(string.Format("Listening (DevSSL): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort));
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(serverOptions.ListenOnSocket))
+                        {
+                            kestrelOptions.ListenUnixSocket(serverOptions.ListenOnSocket);
+                            LogMessage(string.Format("Listening (Unix Socket): {0}", serverOptions.ListenOnSocket));
                         }
                     }
                 })
@@ -65,9 +96,26 @@ namespace GLOKON.GuacWS.Server
             });
 
             var app = builder.Build();
-            var logger = app.Services.GetService<ILogger<Program>>();
-            logger.LogInformation("GuacWS Server is now running");
+            logger = app.Services.GetRequiredService<ILogger<Program>>();
+            LogMessage("GuacWS Server is now running");
+
+            while (queuedLogMessages.TryDequeue(out var message))
+            {
+                LogMessage(message);
+            }
             app.Run();
+        }
+
+        private static void LogMessage(string message)
+        {
+            if (logger == null)
+            {
+                queuedLogMessages.Enqueue(message);
+            }
+            else
+            {
+                logger.LogInformation(message);
+            }
         }
     }
 }

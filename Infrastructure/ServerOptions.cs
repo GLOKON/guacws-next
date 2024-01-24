@@ -2,7 +2,9 @@
 {
     public class ServerOptions
     {
-        public string ListenOn { get; set; } = "0.0.0.0";
+        public string ListenOn { get; set; } = null;
+
+        public string ListenOnSocket { get; set; } = null;
 
         public ushort HttpPort { get; set; } = 8080;
 

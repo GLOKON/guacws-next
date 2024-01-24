@@ -38,13 +38,16 @@ LABEL maintainer="Daniel McAssey <hello at glokon dot me>" \
 ENV LOG_LEVEL='info'
 ENV Logging__LogLevel__Default='Information'
 ENV GuacOptions__UserDriveRoot='/user-drives'
+ENV Server__SSL__CertificatePath='/certs/certificate.pfx'
 EXPOSE 8080
 EXPOSE 8081
 
 RUN mkdir -p /user-drives && chown -R guacd:guacd /user-drives
+RUN mkdir -p /certs && chown -R guacd:guacd /certs
 
 # Specity user drive volume
 VOLUME /user-drives
+VOLUME /certs
 
 USER guacd
 WORKDIR /app
