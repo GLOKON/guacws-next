@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/glokon/guacws-next/compare/v1.2.1...v1.2.2) (2024-01-24)
+
+
+### Bug Fixes
+
+* **app:** improve security ([b49e250](https://github.com/glokon/guacws-next/commit/b49e250028a53478a02a4539c9ddbc22a8e3c865))
+
 ## [1.2.1](https://github.com/glokon/guacws-next/compare/v1.2.0...v1.2.1) (2024-01-24)
 
 
