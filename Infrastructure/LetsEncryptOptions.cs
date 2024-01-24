@@ -4,8 +4,6 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 {
     public class LetsEncryptOptions
     {
-        public bool UseHsts { get; set; } = false;
-
         public bool UseStagingServer { get; set; } = false;
 
         public List<string> Domains { get; set; } = new List<string>();

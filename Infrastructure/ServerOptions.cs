@@ -10,8 +10,15 @@
 
         public ushort HttpsPort { get; set; } = 8081;
 
+        public bool UseHsts { get; set; } = false;
+
         public LetsEncryptOptions LetsEncrypt { get; set; } = new LetsEncryptOptions();
 
         public SslOptions SSL { get; set; } = new SslOptions();
+
+        public bool IsUsingHttps()
+        {
+            return (LetsEncrypt != null && LetsEncrypt.IsEnabled()) || (SSL != null && SSL.IsEnabled());
+        }
     }
 }

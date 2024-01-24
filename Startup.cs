@@ -64,7 +64,7 @@ namespace GLOKON.GuacWS.Server
             }
         }
 
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IOptions<LetsEncryptOptions> letsEncrypt)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IOptions<ServerOptions> serverOptionsVal)
         {
             if (env.IsDevelopment())
             {
@@ -75,9 +75,9 @@ namespace GLOKON.GuacWS.Server
                 app.UseExceptionHandler("/error");
             }
 
-            if (letsEncrypt.Value is LetsEncryptOptions options && options.IsEnabled())
+            if (serverOptionsVal.Value is ServerOptions serverOptions && serverOptions.IsUsingHttps())
             {
-                if (options.UseHsts)
+                if (serverOptions.UseHsts)
                 {
                     app.UseHsts();
                 }
