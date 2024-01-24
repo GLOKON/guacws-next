@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/glokon/guacws-next/compare/v1.2.0...v1.2.1) (2024-01-24)
+
+
+### Bug Fixes
+
+* **app:** improve performance of proxy slightly ([0b63ba8](https://github.com/glokon/guacws-next/commit/0b63ba81245766781c5f14ce07e2e3b3b99fabf2))
+
 # [1.2.0](https://github.com/glokon/guacws-next/compare/v1.1.1...v1.2.0) (2024-01-23)
 
 
