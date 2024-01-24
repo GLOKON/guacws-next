@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/glokon/guacws-next/compare/v1.2.2...v1.2.3) (2024-01-24)
+
+
+### Bug Fixes
+
+* **server:** make ports more configurable ([b103f79](https://github.com/glokon/guacws-next/commit/b103f794ade181fd369df59c6e0ca559237b2a7c))
+
 ## [1.2.2](https://github.com/glokon/guacws-next/compare/v1.2.1...v1.2.2) (2024-01-24)
 
 
