@@ -342,11 +342,15 @@ namespace GLOKON.GuacWS.Server.Guac
             return parsedToken;
         }
 
-        private async Task SendOpCodeAsync(string[] parameters)
+        private Task SendOpCodeAsync(string[] parameters)
         {
             string formattedOpCode = FormatOpCode(parameters);
-            logger.LogTrace("[{0}] Sending Guac Operation: {1}", guacD.Id, formattedOpCode);
-            await guacD.SendAsync(formattedOpCode, CancellationToken.None);
+            if (options.LogTraceMessages)
+            {
+                logger.LogTrace("[{0}] Sending Guac Operation: {1}", guacD.Id, formattedOpCode);
+            }
+
+            return SendToGuacD(Encoding.UTF8.GetBytes(formattedOpCode), CancellationToken.None);
         }
 
         private string FormatOpCode(string[] opCodeParts)

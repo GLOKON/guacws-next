@@ -71,16 +71,6 @@ namespace GLOKON.GuacWS.Server.Guac
             inputPipe.Reset();
         }
 
-        public Task SendAsync(string message, CancellationToken cancellationToken)
-        {
-            return SendAsync(Encoding.UTF8.GetBytes(message), cancellationToken);
-        }
-
-        public async Task SendAsync(byte[] message, CancellationToken cancellationToken)
-        {
-            await stream.WriteAsync(message, 0, message.Length, cancellationToken);
-        }
-
         public async Task RunUntilCloseAsync()
         {
             logger.LogDebug("[{0}] Using pipelines for GuacD", Id);
