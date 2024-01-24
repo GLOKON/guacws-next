@@ -1,3 +1,11 @@
+## [1.2.4](https://github.com/glokon/guacws-next/compare/v1.2.3...v1.2.4) (2024-01-24)
+
+
+### Bug Fixes
+
+* **app:** build for all platforms ([b0e1a19](https://github.com/glokon/guacws-next/commit/b0e1a1976867ed6467b1af6c77a6cce05ed6ee79))
+* **ci:** fix build for platforms ([129117d](https://github.com/glokon/guacws-next/commit/129117de6045c6c67da80d27f6c3ad6fc9168409))
+
 ## [1.2.3](https://github.com/glokon/guacws-next/compare/v1.2.2...v1.2.3) (2024-01-24)
 
 
