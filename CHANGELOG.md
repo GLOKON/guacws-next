@@ -1,3 +1,10 @@
+## [1.2.7](https://github.com/glokon/guacws-next/compare/v1.2.6...v1.2.7) (2024-01-24)
+
+
+### Bug Fixes
+
+* **server:** remove uneeded try/catch blocks, reduce memory footprint ([3a48b9f](https://github.com/glokon/guacws-next/commit/3a48b9f3ca100d52a97e82aa122d9fd5022b2887))
+
 ## [1.2.6](https://github.com/glokon/guacws-next/compare/v1.2.5...v1.2.6) (2024-01-24)
 
 
