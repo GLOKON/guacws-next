@@ -7,9 +7,9 @@ namespace GLOKON.GuacWS.Server.Middlewares
     {
         public HashSet<string> AllowedOrigins { get; set; } = new HashSet<string>();
 
-        public bool UseCompression { get; set; } = false;
+        public bool UseCompression { get; set; } = true;
 
-        public int ReceiveBufferSize { get; set; } = 4 * 1024;
+        public int ReceiveBufferSize { get; set; } = 1024;
 
         public int CloseTimeout { get; set; } = 1500;
     }
