@@ -1,3 +1,10 @@
+## [1.2.9](https://github.com/glokon/guacws-next/compare/v1.2.8...v1.2.9) (2024-01-25)
+
+
+### Bug Fixes
+
+* **app:** improve stability ([f45d60a](https://github.com/glokon/guacws-next/commit/f45d60aac1450f7629929ebb140fa729aa1edd9f))
+
 ## [1.2.8](https://github.com/glokon/guacws-next/compare/v1.2.7...v1.2.8) (2024-01-25)
 
 
