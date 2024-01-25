@@ -1,9 +1,4 @@
-﻿using System.Collections.Generic;
-using GLOKON.GuacWS.Server.Cipher;
-using GLOKON.GuacWS.Server.Guac;
-using GLOKON.GuacWS.Server.Infrastructure;
-
-namespace GLOKON.GuacWS.Server.Middlewares
+﻿namespace GLOKON.GuacWS.Server.Guac
 {
     internal class GuacOptions
     {
@@ -14,6 +9,8 @@ namespace GLOKON.GuacWS.Server.Middlewares
         public AllowedParameterOptions AllowedParameters { get; set; } = new AllowedParameterOptions();
 
         public bool LogTraceMessages { get; set; } = false;
+
+        public int PingFrequency { get; set; } = 500;
 
         public int Timeout { get; set; } = 10000;
     }

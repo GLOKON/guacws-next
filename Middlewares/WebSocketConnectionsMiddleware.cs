@@ -19,6 +19,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
         private readonly WebSocketConnectionsOptions options;
         private readonly RequestDelegate next;
         private readonly SymmetricCipher cipher;
+        private readonly GlobalStore store;
         private readonly ILogger<WebSocketConnectionsMiddleware> webSocketMWLogger;
         private readonly ILogger<WebSocketConnection> webSocketConnLogger;
         private readonly ILogger<GuacDClient> guacDClientLogger;
@@ -31,6 +32,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
             IOptions<WebSocketConnectionsOptions> options,
             IOptions<GuacOptions> guacOptions,
             SymmetricCipher cipher,
+            GlobalStore store,
             ILogger<WebSocketConnectionsMiddleware> webSocketMWLogger,
             ILogger<WebSocketConnection> webSocketConnLogger,
             ILogger<GuacDClient> guacDClientLogger,
@@ -41,6 +43,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
             this.guacOptions = guacOptions.Value;
             this.next = next;
             this.cipher = cipher;
+            this.store = store;
             this.webSocketMWLogger = webSocketMWLogger;
             this.webSocketConnLogger = webSocketConnLogger;
             this.guacDClientLogger = guacDClientLogger;
@@ -70,7 +73,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
                     using (GuacDClient guacDClient = new(connectionId, guacOptions.GuacD, guacDClientLogger))
                     {
                         connectionsService.AddConnection(webSocketConnection);
-                        GuacConnection guacConnection = new(webSocketConnection, guacDClient, guacOptions, cipher, guacConnLogger);
+                        GuacConnection guacConnection = new(webSocketConnection, guacDClient, guacOptions, cipher, store, guacConnLogger);
 
                         try
                         {

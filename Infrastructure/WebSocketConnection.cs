@@ -161,7 +161,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 
                     writer.Advance(message.Count);
 
-                    FlushResult result = await writer.FlushAsync(cts.Token);
+                    FlushResult result = await writer.FlushAsync(cts.Token).ConfigureAwait(false);
                     if (result.IsCompleted || result.IsCanceled)
                     {
                         break;

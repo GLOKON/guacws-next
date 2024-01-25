@@ -9,7 +9,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
 
         public bool UseCompression { get; set; } = true;
 
-        public int ReceiveBufferSize { get; set; } = 1024;
+        public int ReceiveBufferSize { get; set; } = 8192;
 
         public int CloseTimeout { get; set; } = 1500;
     }

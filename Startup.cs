@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using GLOKON.GuacWS.Server.Cipher;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
+using GLOKON.GuacWS.Server.Guac;
 
 namespace GLOKON.GuacWS.Server
 {
@@ -30,6 +31,7 @@ namespace GLOKON.GuacWS.Server
             services.Configure<WebSocketConnectionsOptions>(Configuration.GetRequiredSection("WebSocket"));
             services.Configure<GuacOptions>(Configuration.GetRequiredSection("Guac"));
 
+            services.AddSingleton<GlobalStore>();
             services.AddSingleton((services) =>
             {
                 var options = services.GetRequiredService<IOptions<CipherOptions>>().Value;
@@ -51,6 +53,7 @@ namespace GLOKON.GuacWS.Server
                 return null;
             });
             services.AddWebSocketConnections();
+            services.AddHostedService<TimestampPingService>();
 
             if (serverOptions.LetsEncrypt.IsEnabled())
             {

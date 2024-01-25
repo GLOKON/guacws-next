@@ -37,7 +37,7 @@ namespace GLOKON.GuacWS.Server.Guac
             cts = new CancellationTokenSource();
             client = new TcpClient()
             {
-                NoDelay = true,
+                NoDelay = options.TcpNoDelay,
                 SendBufferSize = options.SendBufferSize,
                 SendTimeout = options.SendTimeout,
                 ReceiveBufferSize = options.ReceiveBufferSize,
@@ -81,13 +81,13 @@ namespace GLOKON.GuacWS.Server.Guac
                 {
                     Memory<byte> memory = inputPipe.Writer.GetMemory(options.ReceiveBufferSize);
 
-                    int bytesReceived = await stream.ReadAsync(memory);
+                    int bytesReceived = await stream.ReadAsync(memory, cts.Token);
 
                     if (bytesReceived > 0)
                     {
                         inputPipe.Writer.Advance(bytesReceived);
 
-                        FlushResult result = await inputPipe.Writer.FlushAsync(cts.Token);
+                        FlushResult result = await inputPipe.Writer.FlushAsync(cts.Token).ConfigureAwait(false);
                         if (result.IsCompleted || result.IsCanceled)
                         {
                             break;

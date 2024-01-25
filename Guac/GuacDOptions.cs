@@ -6,9 +6,11 @@
 
         public ushort Port { get; set; } = 4822;
 
-        public int SendBufferSize { get; set; } = 4096;
+        public bool TcpNoDelay { get; set; } = false;
 
-        public int ReceiveBufferSize { get; set; } = 4096;
+        public int SendBufferSize { get; set; } = 8192;
+
+        public int ReceiveBufferSize { get; set; } = 8192;
 
         public int SendTimeout { get; set; } = 1000;
 
