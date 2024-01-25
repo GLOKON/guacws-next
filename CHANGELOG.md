@@ -1,3 +1,10 @@
+## [1.2.8](https://github.com/glokon/guacws-next/compare/v1.2.7...v1.2.8) (2024-01-25)
+
+
+### Bug Fixes
+
+* **app:** tweak buffers to handle more data and reduce strain on assigning strings ([f8c6558](https://github.com/glokon/guacws-next/commit/f8c6558f4146662f6e87ed3d6dba0b7216f079aa))
+
 ## [1.2.7](https://github.com/glokon/guacws-next/compare/v1.2.6...v1.2.7) (2024-01-24)
 
 
