@@ -1,14 +1,12 @@
 ﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
 using GLOKON.GuacWS.Server.Infrastructure;
 
 namespace GLOKON.GuacWS.Server.Services
 {
     internal interface IWebSocketConnectionsService
     {
-        void AddConnection(WebSocketConnection connection);
+        void AddConnection(Guid id, WebSocketConnection connection);
 
-        void RemoveConnection(Guid connectionId);
+        void RemoveConnection(Guid id);
     }
 }

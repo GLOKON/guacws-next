@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Net.WebSockets;
-using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using GLOKON.GuacWS.Server.Infrastructure;
 using GLOKON.GuacWS.Server.Services;
@@ -20,10 +18,9 @@ namespace GLOKON.GuacWS.Server.Middlewares
         private readonly RequestDelegate next;
         private readonly SymmetricCipher cipher;
         private readonly GlobalStore store;
-        private readonly ILogger<WebSocketConnectionsMiddleware> webSocketMWLogger;
         private readonly ILogger<WebSocketConnection> webSocketConnLogger;
         private readonly ILogger<GuacDClient> guacDClientLogger;
-        private readonly ILogger<GuacConnection> guacConnLogger;
+        private readonly ILogger<GuacConnection> connLogger;
         private readonly GuacOptions guacOptions;
         private readonly IWebSocketConnectionsService connectionsService;
 
@@ -33,10 +30,9 @@ namespace GLOKON.GuacWS.Server.Middlewares
             IOptions<GuacOptions> guacOptions,
             SymmetricCipher cipher,
             GlobalStore store,
-            ILogger<WebSocketConnectionsMiddleware> webSocketMWLogger,
             ILogger<WebSocketConnection> webSocketConnLogger,
             ILogger<GuacDClient> guacDClientLogger,
-            ILogger<GuacConnection> guacConnLogger,
+            ILogger<GuacConnection> connLogger,
             IWebSocketConnectionsService connectionsService)
         {
             this.options = options.Value;
@@ -44,10 +40,9 @@ namespace GLOKON.GuacWS.Server.Middlewares
             this.next = next;
             this.cipher = cipher;
             this.store = store;
-            this.webSocketMWLogger = webSocketMWLogger;
             this.webSocketConnLogger = webSocketConnLogger;
             this.guacDClientLogger = guacDClientLogger;
-            this.guacConnLogger = guacConnLogger;
+            this.connLogger = connLogger;
             this.connectionsService = connectionsService ?? throw new ArgumentNullException(nameof(connectionsService));
         }
 
@@ -59,7 +54,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
                 {
                     Guid connectionId = Guid.NewGuid();
 
-                    webSocketMWLogger.LogDebug("[{0}] Received a new WS request", connectionId);
+                    connLogger.LogDebug("[{id}] Received a new WS request", connectionId);
 
                     WebSocket webSocket = await context.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
                     {
@@ -67,13 +62,13 @@ namespace GLOKON.GuacWS.Server.Middlewares
                         DangerousEnableCompression = options.UseCompression
                     });
 
-                    webSocketMWLogger.LogDebug("[{0}] Accepted a new WS connection", connectionId);
+                    connLogger.LogDebug("[{id}] Accepted a new WS connection", connectionId);
 
                     using (WebSocketConnection webSocketConnection = new(connectionId, webSocket, options, webSocketConnLogger))
                     using (GuacDClient guacDClient = new(connectionId, guacOptions.GuacD, guacDClientLogger))
                     {
-                        connectionsService.AddConnection(webSocketConnection);
-                        GuacConnection guacConnection = new(webSocketConnection, guacDClient, guacOptions, cipher, store, guacConnLogger);
+                        connectionsService.AddConnection(connectionId, webSocketConnection);
+                        GuacConnection guacConnection = new(connectionId, webSocketConnection, guacDClient, guacOptions, cipher, store, connLogger);
 
                         try
                         {
@@ -81,7 +76,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
                         }
                         catch (Exception ex)
                         {
-                            webSocketMWLogger.LogError(ex, "[{0}] There was a problem starting the GuacD connection", connectionId);
+                            connLogger.LogError(ex, "[{id}] There was a problem starting the GuacD connection", connectionId);
                         }
 
                         try
@@ -90,16 +85,16 @@ namespace GLOKON.GuacWS.Server.Middlewares
                         }
                         catch (Exception ex)
                         {
-                            webSocketMWLogger.LogError(ex, "[{0}] There was a problem stopping the GuacD connection", connectionId);
+                            connLogger.LogError(ex, "[{id}] There was a problem stopping the GuacD connection", connectionId);
                         }
 
-                        webSocketMWLogger.LogInformation("[{0}] Ending GuacWS session", connectionId);
-                        connectionsService.RemoveConnection(webSocketConnection.Id);
+                        connLogger.LogInformation("[{id}] Ending GuacWS session", connectionId);
+                        connectionsService.RemoveConnection(connectionId);
                     }
                 }
                 else
                 {
-                    webSocketMWLogger.LogDebug("Blocked WS request from invalid origin: {0}", context.Request.Headers["Origin"]);
+                    connLogger.LogDebug("Blocked WS request from invalid origin: {origin}", context.Request.Headers.Origin);
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 }
             }
@@ -111,7 +106,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
 
         private bool ValidateOrigin(HttpContext context)
         {
-            return (options.AllowedOrigins == null) || (options.AllowedOrigins.Count == 0) || (options.AllowedOrigins.Contains(context.Request.Headers["Origin"].ToString()));
+            return (options.AllowedOrigins == null) || (options.AllowedOrigins.Count == 0) || (options.AllowedOrigins.Contains(context.Request.Headers.Origin.ToString()));
         }
     }
 }

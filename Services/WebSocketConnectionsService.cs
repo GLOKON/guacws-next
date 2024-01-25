@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
 using GLOKON.GuacWS.Server.Infrastructure;
 
@@ -9,18 +6,16 @@ namespace GLOKON.GuacWS.Server.Services
 {
     internal class WebSocketConnectionsService : IWebSocketConnectionsService
     {
-        private readonly ConcurrentDictionary<Guid, WebSocketConnection> _connections = new ConcurrentDictionary<Guid, WebSocketConnection>();
+        private readonly ConcurrentDictionary<Guid, WebSocketConnection> _connections = new();
 
-        public void AddConnection(WebSocketConnection connection)
+        public void AddConnection(Guid id, WebSocketConnection connection)
         {
-            _connections.TryAdd(connection.Id, connection);
+            _connections.TryAdd(id, connection);
         }
 
-        public void RemoveConnection(Guid connectionId)
+        public void RemoveConnection(Guid id)
         {
-            WebSocketConnection connection;
-
-            _connections.TryRemove(connectionId, out connection);
+            _connections.TryRemove(id, out _);
         }
     }
 }

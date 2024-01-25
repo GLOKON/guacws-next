@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Org.BouncyCastle.Crypto.Macs;
 using System;
 using System.Buffers;
 using System.IO;
@@ -17,9 +18,9 @@ namespace GLOKON.GuacWS.Server.Guac
         private readonly ILogger<GuacDClient> logger;
         private readonly TcpClient client;
         private readonly Pipe inputPipe;
-        private readonly CancellationTokenSource cts;
         private PipeWriter outputWriter;
-
+        private bool isClosed = false;
+        private bool isDisposed = false;
         private NetworkStream stream;
 
         public Guid Id { get; }
@@ -34,7 +35,6 @@ namespace GLOKON.GuacWS.Server.Guac
             this.options = options;
             this.logger = logger;
 
-            cts = new CancellationTokenSource();
             client = new TcpClient()
             {
                 NoDelay = options.TcpNoDelay,
@@ -48,14 +48,25 @@ namespace GLOKON.GuacWS.Server.Guac
 
         public void Dispose()
         {
-            logger.LogDebug("[{0}] Cleaning up GuacD client", Id);
-            cts.Dispose();
+            if (isDisposed)
+            {
+                return;
+            }
+
+            logger.LogDebug("[{id}] Cleaning up GuacD client", Id);
             client.Dispose();
+            isDisposed = true;
         }
 
         public async Task ConnectAsync()
         {
-            logger.LogDebug("[{0}] Connecting GuacD client to {1}:{2}", Id, options.Host, options.Port);
+            if (isDisposed || isClosed)
+            {
+                logger.LogWarning("[{id}] Attempting to connect to a disposed GuacD client", Id);
+                return;
+            }
+
+            logger.LogDebug("[{id}] Connecting GuacD client to {host}:{port}", Id, options.Host, options.Port);
             await client.ConnectAsync(options.Host, options.Port);
             stream = client.GetStream();
             outputWriter = PipeWriter.Create(stream);
@@ -63,31 +74,34 @@ namespace GLOKON.GuacWS.Server.Guac
 
         public async Task CloseAsync()
         {
-            logger.LogDebug("[{0}] Disconnecting GuacD client", Id);
-            cts.Cancel();
+            if (isClosed)
+            {
+                return;
+            }
+
+            logger.LogDebug("[{id}] Disconnecting GuacD client", Id);
             await inputPipe.Writer.CompleteAsync();
             await inputPipe.Reader.CompleteAsync();
             client.Close();
             inputPipe.Reset();
+            isClosed = true;
         }
 
-        public async Task RunUntilCloseAsync()
+        public async Task RunUntilCloseAsync(CancellationToken token)
         {
-            logger.LogDebug("[{0}] Using pipelines for GuacD", Id);
+            logger.LogDebug("[{id}] Using pipelines for GuacD", Id);
 
             try
             {
-                while (!cts.IsCancellationRequested)
+                while (!token.IsCancellationRequested)
                 {
-                    Memory<byte> memory = inputPipe.Writer.GetMemory(options.ReceiveBufferSize);
-
-                    int bytesReceived = await stream.ReadAsync(memory, cts.Token);
+                    int bytesReceived = await stream.ReadAsync(inputPipe.Writer.GetMemory(options.ReceiveBufferSize), token);
 
                     if (bytesReceived > 0)
                     {
                         inputPipe.Writer.Advance(bytesReceived);
 
-                        FlushResult result = await inputPipe.Writer.FlushAsync(cts.Token).ConfigureAwait(false);
+                        FlushResult result = await inputPipe.Writer.FlushAsync(token).ConfigureAwait(false);
                         if (result.IsCompleted || result.IsCanceled)
                         {
                             break;
@@ -103,10 +117,10 @@ namespace GLOKON.GuacWS.Server.Guac
             catch (OperationCanceledException) {}
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{0}] Error occurred during receiving from GuacD", Id);
+                logger.LogError(ex, "[{id}] Error occurred during receiving from GuacD", Id);
             }
 
-            await CloseAsync();
+            logger.LogDebug("[{id}] Finished running the GuacD client", Id);
         }
     }
 }

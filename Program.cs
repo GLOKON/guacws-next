@@ -2,6 +2,7 @@
 using GLOKON.GuacWS.Server.Logger;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,7 +18,7 @@ namespace GLOKON.GuacWS.Server
     {
         private static ILogger<Program> logger;
 
-        private static Queue<string> queuedLogMessages = new Queue<string>();
+        private static readonly Queue<string> queuedLogMessages = new();
 
         public static void Main(string[] args)
         {
@@ -41,6 +42,7 @@ namespace GLOKON.GuacWS.Server
                             {
                                 kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
                                 {
+                                    listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
                                     listenOptions.UseHttps(httpsOptions =>
                                     {
                                         httpsOptions.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
@@ -54,6 +56,7 @@ namespace GLOKON.GuacWS.Server
                             {
                                 kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
                                 {
+                                    listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
                                     listenOptions.UseHttps(serverOptions.SSL.CertificatePath, serverOptions.SSL.CertificatePassword);
                                 });
 
@@ -64,6 +67,7 @@ namespace GLOKON.GuacWS.Server
                                 // Use development certificate
                                 kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
                                 {
+                                    listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
                                     listenOptions.UseHttps();
                                 });
 
@@ -76,6 +80,12 @@ namespace GLOKON.GuacWS.Server
                             kestrelOptions.ListenUnixSocket(serverOptions.ListenOnSocket);
                             LogMessage(string.Format("Listening (Unix Socket): {0}", serverOptions.ListenOnSocket));
                         }
+
+                        if (!string.IsNullOrEmpty(serverOptions.ListenOnNamedPipe))
+                        {
+                            kestrelOptions.ListenNamedPipe(serverOptions.ListenOnNamedPipe);
+                            LogMessage(string.Format("Listening (Named Pipe): {0}", serverOptions.ListenOnNamedPipe));
+                        }
                     }
                 })
                 .UseUrls();
@@ -87,7 +97,7 @@ namespace GLOKON.GuacWS.Server
                     options.SingleLine = true;
                     options.IncludeScopes = false;
                     options.ColorBehavior = LoggerColorBehavior.Default;
-                    options.TimestampFormat = "dd/MM/yyyy HH:mm:ss ";
+                    options.TimestampFormat = "dd/MM/yyyy HH:mm:ss.fff ";
                 });
                 logBuilder.AddConsole((options) =>
                 {
@@ -106,15 +116,15 @@ namespace GLOKON.GuacWS.Server
             app.Run();
         }
 
-        private static void LogMessage(string message)
+        private static void LogMessage(string log)
         {
             if (logger == null)
             {
-                queuedLogMessages.Enqueue(message);
+                queuedLogMessages.Enqueue(log);
             }
             else
             {
-                logger.LogInformation(message);
+                logger.LogInformation(message: log);
             }
         }
     }

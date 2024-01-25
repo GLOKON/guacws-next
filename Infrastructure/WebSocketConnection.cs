@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.Net.WebSockets;
 using Microsoft.Extensions.Logging;
 using System.IO.Pipelines;
-using Microsoft.Extensions.Options;
 using System.Buffers;
 using GLOKON.GuacWS.Server.Middlewares;
 
@@ -17,9 +16,13 @@ namespace GLOKON.GuacWS.Server.Infrastructure
         private readonly ILogger<WebSocketConnection> logger;
         private readonly WebSocket webSocket;
         private readonly WebSocketConnectionsOptions options;
-        private readonly CancellationTokenSource cts;
         private readonly Pipe inputPipe;
         private readonly Pipe outputPipe;
+
+        private bool isClosed = false;
+        private bool isDisposed = false;
+        private bool isErrored = false;
+        private string errorMessage = null;
 
         public Guid Id { get; }
 
@@ -41,7 +44,6 @@ namespace GLOKON.GuacWS.Server.Infrastructure
             this.webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
             this.options = options;
             this.logger = logger;
-            cts = new CancellationTokenSource();
 
             inputPipe = new Pipe(new PipeOptions(useSynchronizationContext: false));
             outputPipe = new Pipe(new PipeOptions(useSynchronizationContext: false));
@@ -49,52 +51,59 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 
         public void Dispose()
         {
-            logger.LogDebug("[{0}] Cleaning up WS connection", Id);
-            cts.Dispose();
+            if (isDisposed)
+            {
+                return;
+            }
+
+            logger.LogDebug("[{id}] Cleaning up WS connection", Id);
+            isDisposed = true;
         }
 
-        public async Task CloseAsync(WebSocketCloseStatus? closeStatus = null, string? closeStatusDescription = null)
+        public async Task CloseAsync()
         {
-            logger.LogDebug("[{0}] Disconnecting WS connection", Id);
-            cts.Cancel();
-
-            using (var cts = new CancellationTokenSource(options.CloseTimeout))
+            if (isClosed)
             {
-                await webSocket.CloseOutputAsync(closeStatus ?? WebSocketCloseStatus.NormalClosure, closeStatusDescription ?? string.Empty, cts.Token);
+                return;
             }
+
+            logger.LogDebug("[{id}] Disconnecting WS connection", Id);
+
+            using (var cancelCts = new CancellationTokenSource(options.CloseTimeout))
+            {
+                try
+                {
+                    await webSocket.CloseOutputAsync(isErrored ? WebSocketCloseStatus.InternalServerError : WebSocketCloseStatus.NormalClosure, errorMessage ?? string.Empty, cancelCts.Token);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[{id}] Error occured closing WebSocket gracefully", Id);
+                }
+            }
+
+            isClosed = true;
         }
 
-        public async Task RunUntilCloseAsync()
+        public async Task RunUntilCloseAsync(CancellationToken token)
         {
-            logger.LogDebug("[{0}] Using pipelines for WebSocket", Id);
-            Task<bool> duplexTasks = await Task.WhenAny(SendUntilCloseAsync(outputPipe.Reader), ReceiveUntilCloseAsync(inputPipe.Writer));
-            bool isErrored = await duplexTasks;
-
-            if (isErrored)
-            {
-                await CloseAsync(WebSocketCloseStatus.InternalServerError, "There was a problem receiving data from the websocket");
-            }
-            else
-            {
-                await CloseAsync();
-            }
+            logger.LogDebug("[{id}] Using pipelines for WebSocket", Id);
+            await Task.WhenAny(SendUntilCloseAsync(outputPipe.Reader, token), ReceiveUntilCloseAsync(inputPipe.Writer, token));
+            logger.LogDebug("[{id}] Finished running the WebSocket", Id);
         }
 
-        private async Task<bool> SendUntilCloseAsync(PipeReader reader)
+        private async Task SendUntilCloseAsync(PipeReader reader, CancellationToken token)
         {
-            bool isErrored = false;
-
             try
             {
-                byte[] empty = Array.Empty<byte>();
+                byte[] empty = [];
 
-                while (webSocket.State == WebSocketState.Open && await reader.ReadAsync(cts.Token) is ReadResult result && !result.IsCompleted && !result.IsCanceled)
+                while (webSocket.State == WebSocketState.Open && !token.IsCancellationRequested && await reader.ReadAsync(token) is ReadResult result && !result.IsCompleted && !result.IsCanceled)
                 {
                     ReadOnlySequence<byte> buffer = result.Buffer;
 
                     if (buffer.IsSingleSegment)
                     {
-                        await webSocket.SendAsync(buffer.First, WebSocketMessageType.Text, GetMessageFlags(true, !options.UseCompression), cts.Token);
+                        await webSocket.SendAsync(buffer.First, WebSocketMessageType.Text, GetMessageFlags(true, !options.UseCompression), token);
                     }
                     else
                     {
@@ -102,10 +111,10 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 
                         while (buffer.TryGet(ref position, out var memory, advance: true))
                         {
-                            await webSocket.SendAsync(memory, WebSocketMessageType.Text, GetMessageFlags(false, !options.UseCompression), cts.Token);
+                            await webSocket.SendAsync(memory, WebSocketMessageType.Text, GetMessageFlags(false, !options.UseCompression), token);
                         }
 
-                        await webSocket.SendAsync(empty, WebSocketMessageType.Text, GetMessageFlags(true, !options.UseCompression), cts.Token);
+                        await webSocket.SendAsync(empty, WebSocketMessageType.Text, GetMessageFlags(true, !options.UseCompression), token);
                     }
 
                     reader.AdvanceTo(buffer.End, buffer.End);
@@ -114,54 +123,53 @@ namespace GLOKON.GuacWS.Server.Infrastructure
             catch (OperationCanceledException) {}
             catch (WebSocketException wsex) when (wsex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
             {
-                logger.LogError(wsex, "[{0}] Error occurred during receiving from WebSocket", Id);
+                logger.LogError(wsex, "[{id}] Error occurred during receiving from WebSocket, closed prematurely", Id);
                 isErrored = true;
+                errorMessage = "The WebSocket was closed prematurely";
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{0}] Error occurred during receiving from WebSocket", Id);
+                logger.LogError(ex, "[{id}] Error occurred during receiving from WebSocket", Id);
                 isErrored = true;
+                errorMessage = "Could not read from WebSocket";
             }
 
             await outputPipe.Reader.CompleteAsync();
             await outputPipe.Writer.CompleteAsync();
             outputPipe.Reset();
-
-            return isErrored;
         }
 
-        private async Task<bool> ReceiveUntilCloseAsync(PipeWriter writer)
+        private async Task ReceiveUntilCloseAsync(PipeWriter writer, CancellationToken token)
         {
-            bool isErrored = false;
-
             try
             {
-                while (webSocket.State == WebSocketState.Open && !cts.IsCancellationRequested)
+                while (webSocket.State == WebSocketState.Open && !token.IsCancellationRequested)
                 {
-                    var message = await webSocket.ReceiveAsync(writer.GetMemory(options.ReceiveBufferSize), cts.Token);
+                    var message = await webSocket.ReceiveAsync(writer.GetMemory(options.ReceiveBufferSize), token);
 
-                    while (!cts.IsCancellationRequested && !message.EndOfMessage && message.MessageType != WebSocketMessageType.Close)
+                    while (!token.IsCancellationRequested && !message.EndOfMessage && message.MessageType != WebSocketMessageType.Close)
                     {
                         if (message.Count > 0)
                         {
                             writer.Advance(message.Count);
-                            message = await webSocket.ReceiveAsync(writer.GetMemory(options.ReceiveBufferSize), cts.Token);
+                            message = await webSocket.ReceiveAsync(writer.GetMemory(options.ReceiveBufferSize), token);
                         }
                         else
                         {
+                            // End of stream
                             break;
                         }
                     }
 
                     // We didn't get a complete message, we can't flush partial message.
-                    if (cts.IsCancellationRequested || !message.EndOfMessage || message.MessageType == WebSocketMessageType.Close)
+                    if (token.IsCancellationRequested || !message.EndOfMessage || message.MessageType == WebSocketMessageType.Close)
                     {
                         break;
                     }
 
                     writer.Advance(message.Count);
 
-                    FlushResult result = await writer.FlushAsync(cts.Token).ConfigureAwait(false);
+                    FlushResult result = await writer.FlushAsync(token).ConfigureAwait(false);
                     if (result.IsCompleted || result.IsCanceled)
                     {
                         break;
@@ -171,20 +179,20 @@ namespace GLOKON.GuacWS.Server.Infrastructure
             catch (OperationCanceledException) { }
             catch (WebSocketException wsex) when (wsex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
             {
-                logger.LogError(wsex, "[{0}] Error occurred during receiving from WebSocket", Id);
+                logger.LogError(wsex, "[{id}] Error occurred during receiving from WebSocket, closed prematurely", Id);
                 isErrored = true;
+                errorMessage = "The WebSocket was closed prematurely";
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{0}] Error occurred during receiving from WebSocket", Id);
+                logger.LogError(ex, "[{id}] Error occurred during receiving from WebSocket", Id);
                 isErrored = true;
+                errorMessage = "Could not read from WebSocket";
             }
 
             await inputPipe.Writer.CompleteAsync();
             await inputPipe.Reader.CompleteAsync();
             inputPipe.Reset();
-
-            return isErrored;
         }
 
         private static WebSocketMessageFlags GetMessageFlags(bool endOfMessage, bool disableCompression)

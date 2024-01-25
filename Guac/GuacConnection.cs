@@ -1,8 +1,6 @@
 ﻿using GLOKON.GuacWS.Server.Cipher;
 using GLOKON.GuacWS.Server.Guac.Parameters;
 using GLOKON.GuacWS.Server.Infrastructure;
-using GLOKON.GuacWS.Server.Middlewares;
-using GLOKON.GuacWS.Server.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using System;
@@ -14,7 +12,6 @@ using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net.WebSockets;
-using System.Reflection.Emit;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -40,14 +37,16 @@ namespace GLOKON.GuacWS.Server.Guac
         private bool handshakeReplySent;
         private CancellationTokenSource cts;
         private bool sendPing = false;
+        private bool isStopped = false;
 
+        public Guid Id { get; private set; }
         public ConnectionType ProtocolType { get; private set; }
-        public Dictionary<string, string> Settings { get; private set; } = new Dictionary<string, string>();
+        public Dictionary<string, string> Settings { get; private set; } = [];
 
         public static string FormatProtocolMessage(string opCode, params string[] args)
         {
             // Guac Protocol Format of "OPCODE,ARG1,ARG2,ARG3,...;"
-            if (args.Length == 0)
+            if (args == null || args.Length == 0)
             {
                 return FormatProtocolChunk(opCode) + ";";
             }
@@ -65,7 +64,9 @@ namespace GLOKON.GuacWS.Server.Guac
             return FormatProtocolChunk(opCode) + "," + formattedArgs + ";";
         }
 
-        public GuacConnection(WebSocketConnection webSocket, GuacDClient guacD, GuacOptions options, SymmetricCipher cipher, GlobalStore store, ILogger<GuacConnection> logger) {
+        public GuacConnection(Guid Id, WebSocketConnection webSocket, GuacDClient guacD, GuacOptions options, SymmetricCipher cipher, GlobalStore store, ILogger<GuacConnection> logger)
+        {
+            this.Id = Id;
             this.webSocket = webSocket;
             this.guacD = guacD;
             this.options = options;
@@ -74,61 +75,101 @@ namespace GLOKON.GuacWS.Server.Guac
             this.logger = logger;
         }
 
-        public void Dispose()
-        {
-            guacD.Dispose();
-        }
-
         public async Task StartAsync(IDictionary<string, StringValues> untrustedParams)
         {
-            logger.LogDebug("[{0}] Starting GuacWS Connection", guacD.Id);
+            if (isStopped)
+            {
+                logger.LogWarning("[{id}] Attempting to start a stopped GuacWS connection", Id);
+                return;
+            }
+
+            logger.LogInformation("[{id}] Starting GuacWS Connection", Id);
+
+            cts = new CancellationTokenSource();
 
             ParseToken(untrustedParams);
 
             await guacD.ConnectAsync();
 
-            StartActivityMonitor(options.PingFrequency, options.Timeout);
-
             // Send Tunnel ID to Client
-            SendToWebSocket(FormatProtocolMessage(InternalDataOpCode, guacD.Id.ToString()));
+            SendToWebSocket(FormatProtocolMessage(InternalDataOpCode, Id.ToString()));
 
             // Send initial GuacD message
             handshakeMessage = string.Empty;
             SendToGuacD(FormatProtocolMessage("select", ProtocolType.ToString().ToLower()));
             await FinishGuacDSendAsync(cts.Token).ConfigureAwait(false);
 
-            logger.LogDebug("[{0}] Started GuacWS Connection", guacD.Id);
+            logger.LogInformation("[{id}] Started GuacWS Connection", Id);
 
+            StartActivityMonitor(options.PingFrequency, options.Timeout, cts.Token);
             await Task.WhenAny(
-                guacD.RunUntilCloseAsync(),
+                guacD.RunUntilCloseAsync(cts.Token),
                 ProcessGuacD(guacD.Input),
-                webSocket.RunUntilCloseAsync(),
+                webSocket.RunUntilCloseAsync(cts.Token),
                 ProcessWebSocket(webSocket.Input));
         }
 
-        public async Task StopAsync(bool isErrored = false, string? message = null)
+        public async Task StopAsync()
         {
-            logger.LogDebug("[{0}] Stopping GuacWS Connection", guacD.Id);
-
-            StopActivityMonitor();
-
-            await guacD.CloseAsync();
-
-            if (isErrored)
+            if (isStopped)
             {
-                await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, message);
+                return;
             }
-            else
+
+            logger.LogInformation("[{id}] Stopping GuacWS Connection", Id);
+
+            try
+            {
+                cts.Cancel();
+                cts.Dispose();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "[{id}] Failed to cancel guac connection gracefully", Id);
+            }
+
+            try
+            {
+                await guacD.CloseAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "[{id}] Error occured closing GuacD connection", Id);
+            }
+
+            try
             {
                 await webSocket.CloseAsync();
             }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "[{id}] Error occured closing WebSocket connection", Id);
+            }
+
+            isStopped = true;
 
             if (Settings.TryGetValue("drive-path", out string userDrive))
             {
                 DeleteUserDrive(userDrive);
             }
 
-            logger.LogDebug("[{0}] Stopped GuacWS Connection", guacD.Id);
+            logger.LogInformation("[{id}] Stopped GuacWS Connection", Id);
+        }
+
+        private static bool TryReadGuacDMessage(ref ReadOnlySequence<byte> buffer, out ReadOnlySequence<byte> message)
+        {
+            SequencePosition? position = buffer.PositionOf(GuacDClient.DataDelimiter);
+
+            if (position == null)
+            {
+                message = default;
+                return false;
+            }
+
+            SequencePosition nextDataStart = buffer.GetPosition(1, position.Value);
+            message = buffer.Slice(0, nextDataStart);
+            buffer = buffer.Slice(nextDataStart);
+            return true;
         }
 
         private static string FormatProtocolChunk(string chunk)
@@ -137,9 +178,9 @@ namespace GLOKON.GuacWS.Server.Guac
             return string.Format("{0}.{1}", finalChunk.Length, finalChunk);
         }
 
-        private string CreateUserDrive(string userPath)
+        private static string CreateUserDrive(string root, string userPath)
         {
-            string finalUserPath = Path.Combine(options.UserDriveRoot, userPath.TrimStart('/'));
+            string finalUserPath = Path.Combine(root, userPath.TrimStart('/'));
 
             // Delete user path, start fresh
             DeleteUserDrive(finalUserPath);
@@ -148,7 +189,7 @@ namespace GLOKON.GuacWS.Server.Guac
             return finalUserPath;
         }
 
-        private void DeleteUserDrive(string userPath)
+        private static void DeleteUserDrive(string userPath)
         {
             if (Directory.Exists(userPath))
             {
@@ -189,9 +230,11 @@ namespace GLOKON.GuacWS.Server.Guac
             catch (OperationCanceledException) { }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{0}] Error occurred during processing from WebSocket", guacD.Id);
+                logger.LogError(ex, "[{id}] Error occurred during processing from WebSocket", Id);
                 throw;
             }
+
+            logger.LogDebug("[{id}] Finished processing from WebSocket", Id);
         }
 
         private async Task ProcessGuacD(PipeReader reader)
@@ -244,25 +287,11 @@ namespace GLOKON.GuacWS.Server.Guac
             catch (OperationCanceledException) { }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{0}] Error occurred during processing from GuacD", guacD.Id);
+                logger.LogError(ex, "[{id}] Error occurred during processing from GuacD", Id);
                 throw;
             }
-        }
 
-        private bool TryReadGuacDMessage(ref ReadOnlySequence<byte> buffer, out ReadOnlySequence<byte> message)
-        {
-            SequencePosition? position = buffer.PositionOf(GuacDClient.DataDelimiter);
-
-            if (position == null)
-            {
-                message = default;
-                return false;
-            }
-
-            SequencePosition nextDataStart = buffer.GetPosition(1, position.Value);
-            message = buffer.Slice(0, nextDataStart);
-            buffer = buffer.Slice(nextDataStart);
-            return true;
+            logger.LogDebug("[{id}] Finished processing from GuacD", Id);
         }
 
         private void ReceiveWSToGuacD(ReadOnlyMemory<byte> message)
@@ -271,7 +300,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
             if (handshakeReplySent)
             {
-                while (pendingWebSocketMessages.Count > 0)
+                while (!pendingWebSocketMessages.IsEmpty)
                 {
                     if (pendingWebSocketMessages.TryDequeue(out byte[] pendingMessage))
                     {
@@ -303,26 +332,28 @@ namespace GLOKON.GuacWS.Server.Guac
 
         private async Task<bool> TrySendGuacDHandshakeReplyAsync(string handshake)
         {
-            logger.LogTrace("[{0}] GUAC Handshake: {1}", webSocket.Id, handshake);
+            logger.LogTrace("[{id}] GUAC Handshake: {handshake}", Id, handshake);
 
-            if (handshake.IndexOf(';') == -1)
+            if (!handshake.Contains(';'))
             {
-                logger.LogTrace("[{0}] Received incomplete handshake: {1}", webSocket.Id, handshake);
+                logger.LogTrace("[{id}] Received incomplete handshake: {handshake}", Id, handshake);
                 return false;
             }
 
-            SendToGuacD(FormatProtocolMessage("size", new string[] {
-                GetConnectionSetting("width"),
-                GetConnectionSetting("height"),
-                GetConnectionSetting("dpi")
-            }));
+            SendToGuacD(FormatProtocolMessage("size", GetConnectionSetting("width"), GetConnectionSetting("height"), GetConnectionSetting("dpi")));
+            SendToGuacD(FormatProtocolMessage("audio", GetConnectionSetting("audio")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+            SendToGuacD(FormatProtocolMessage("video", GetConnectionSetting("video")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+            SendToGuacD(FormatProtocolMessage("image", GetConnectionSetting("image")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+            SendToGuacD(FormatProtocolMessage("timezone", GetConnectionSetting("timezone")));
 
-            SendToGuacD(FormatProtocolMessage("audio", GetConnectionSetting("audio")));
-            SendToGuacD(FormatProtocolMessage("video", GetConnectionSetting("video")));
-            SendToGuacD(FormatProtocolMessage("image", GetConnectionSetting("image")));
+            string name = GetConnectionSetting("name");
+            if (!string.IsNullOrEmpty(name))
+            {
+                SendToGuacD(FormatProtocolMessage("name", name));
+            }
 
             string[] parameterRequests = handshake.TrimEnd(';').Split(',');
-            IList<string> parameterReplies = new List<string>();
+            List<string> parameterReplies = [];
 
             foreach (string  parameterRequest in parameterRequests)
             {
@@ -339,7 +370,7 @@ namespace GLOKON.GuacWS.Server.Guac
                 }
             }
 
-            SendToGuacD(FormatProtocolMessage("connect", parameterReplies.ToArray()));
+            SendToGuacD(FormatProtocolMessage("connect", [.. parameterReplies]));
             await FinishGuacDSendAsync(cts.Token).ConfigureAwait(false);
 
             return true;
@@ -352,7 +383,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
         private string ParseOpCode(string parameter)
         {
-            return parameter.Substring(parameter.IndexOf(".") + 1);
+            return parameter.Substring(parameter.IndexOf('.') + 1);
         }
 
         private GuacToken ParseToken(IDictionary<string, StringValues> untrustedParams)
@@ -396,7 +427,7 @@ namespace GLOKON.GuacWS.Server.Guac
                 });
 
             // Add parameters that are not in the token, if permitted
-            ISet<string> allowedUntrustedParams = options.AllowedParameters.Global;
+            HashSet<string> allowedUntrustedParams = options.AllowedParameters.Global;
             string connectionType = parsedToken.Connection.Type.ToString().ToLower();
 
             if (options.AllowedParameters.Connection.TryGetValue(connectionType, out HashSet<string> allowedConnParams))
@@ -418,7 +449,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
             if (Settings.TryGetValue("drive-path", out string userDrive))
             {
-                Settings["drive-path"] = CreateUserDrive(userDrive);
+                Settings["drive-path"] = CreateUserDrive(options.UserDriveRoot, userDrive);
             }
 
             return parsedToken;
@@ -433,7 +464,7 @@ namespace GLOKON.GuacWS.Server.Guac
         {
             if (options.LogTraceMessages)
             {
-                logger.LogTrace("[{0}] WS >> GUAC: {1}", guacD.Id, Encoding.UTF8.GetString(message.ToArray()));
+                logger.LogTrace("[{id}] WS >> GUAC: {message}", Id, Encoding.UTF8.GetString(message.ToArray()));
             }
 
             guacD.Output.Write(message.Span);
@@ -453,7 +484,7 @@ namespace GLOKON.GuacWS.Server.Guac
         {
             if (options.LogTraceMessages)
             {
-                logger.LogTrace("[{0}] GUAC >> WS: {1}", webSocket.Id, Encoding.UTF8.GetString(message.ToArray()));
+                logger.LogTrace("[{id}] GUAC >> WS: {message}", Id, Encoding.UTF8.GetString(message.ToArray()));
             }
 
             webSocket.Output.Write(message.Span);
@@ -469,20 +500,14 @@ namespace GLOKON.GuacWS.Server.Guac
             hasActivity = true;
         }
 
-        private void StartActivityMonitor(int pingFrequency, int timeout)
+        private void StartActivityMonitor(int pingFrequency, int timeout, CancellationToken token)
         {
-            if (cts != null)
-            {
-                return;
-            }
-
-            cts = new CancellationTokenSource();
-            UpdateActivity();
+            UpdateActivity(); // Initial hit to keep this alive
 
             Task.Run(async () =>
             {
                 int trackedTime = timeout;
-                while (cts != null && !cts.IsCancellationRequested)
+                while (!token.IsCancellationRequested)
                 {
                     await Task.Delay(pingFrequency);
                     trackedTime -= pingFrequency;
@@ -493,7 +518,8 @@ namespace GLOKON.GuacWS.Server.Guac
 
                         if (!hasActivity)
                         {
-                            await StopAsync(true, "There was no activity within the specified timeout");
+                            logger.LogError("[{id}] Closing GuacWS connection, there was no activity within the specified timeout", Id);
+                            await StopAsync();
                         }
 
                         hasActivity = false;
@@ -505,23 +531,6 @@ namespace GLOKON.GuacWS.Server.Guac
                     }
                 }
             });
-        }
-
-        private void StopActivityMonitor()
-        {
-            try
-            {
-                cts?.Cancel();
-                cts?.Dispose();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "[{0}] Failed to stop GuacWS activity monitor", guacD.Id);
-            }
-            finally
-            {
-                cts = null;
-            }
         }
     }
 }

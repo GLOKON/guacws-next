@@ -6,6 +6,8 @@
 
         public string ListenOnSocket { get; set; } = null;
 
+        public string ListenOnNamedPipe { get; set; } = null;
+
         public ushort HttpPort { get; set; } = 8080;
 
         public ushort HttpsPort { get; set; } = 8081;
