@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/glokon/guacws-next/compare/v1.2.9...v1.3.0) (2024-01-26)
+
+
+### Features
+
+* **server:** add faster uploads, bypassing the need for the Guac protocol ([bc74353](https://github.com/glokon/guacws-next/commit/bc74353def098e41ac6d37a5ae70042848579bca))
+
 ## [1.2.9](https://github.com/glokon/guacws-next/compare/v1.2.8...v1.2.9) (2024-01-25)
 
 
