@@ -1,6 +1,7 @@
 ﻿using GLOKON.GuacWS.Server.Infrastructure;
 using GLOKON.GuacWS.Server.Logger;
 using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
@@ -32,6 +33,15 @@ namespace GLOKON.GuacWS.Server
 
                     if (serverOptionsVal.Value is ServerOptions serverOptions)
                     {
+                        if (serverOptions.MaxUploadSize > 0)
+                        {
+                            kestrelOptions.Limits.MaxRequestBodySize = serverOptions.MaxUploadSize;
+                        }
+                        else
+                        {
+                            kestrelOptions.Limits.MaxRequestBodySize = null;
+                        }
+
                         if (!string.IsNullOrEmpty(serverOptions.ListenOn))
                         {
                             IPAddress listenAddress = IPAddress.Parse(serverOptions.ListenOn);

@@ -1,8 +1,6 @@
-﻿using GLOKON.GuacWS.Server.Cipher;
-using GLOKON.GuacWS.Server.Guac.Parameters;
-using GLOKON.GuacWS.Server.Infrastructure;
+﻿using GLOKON.GuacWS.Server.Infrastructure;
+using GLOKON.GuacWS.Server.Infrastructure.Token;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Primitives;
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
@@ -10,16 +8,13 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.IO.Pipelines;
-using System.Linq;
-using System.Net.WebSockets;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace GLOKON.GuacWS.Server.Guac
 {
-    internal class GuacConnection
+    internal class GuacConnection : IGuacConnection
     {
         public const string PingOpCode = "ping";
         private const string InternalDataOpCode = "";
@@ -28,7 +23,6 @@ namespace GLOKON.GuacWS.Server.Guac
         private readonly GuacDClient guacD;
         private readonly GuacOptions options;
         private readonly ILogger<GuacConnection> logger;
-        private readonly SymmetricCipher cipher;
         private readonly GlobalStore store;
         private readonly ConcurrentQueue<byte[]> pendingWebSocketMessages = new();
 
@@ -40,42 +34,22 @@ namespace GLOKON.GuacWS.Server.Guac
         private bool isStopped = false;
 
         public Guid Id { get; private set; }
-        public ConnectionType ProtocolType { get; private set; }
-        public Dictionary<string, string> Settings { get; private set; } = [];
 
-        public static string FormatProtocolMessage(string opCode, params string[] args)
+        public ConnectionProfile ConnectionProfile { get; private set; }
+
+        public string UserDrive { get; private set; }
+
+        public GuacConnection(Guid id, WebSocketConnection webSocket, GuacDClient guacD, GuacOptions options, GlobalStore store, ILogger<GuacConnection> logger)
         {
-            // Guac Protocol Format of "OPCODE,ARG1,ARG2,ARG3,...;"
-            if (args == null || args.Length == 0)
-            {
-                return FormatProtocolChunk(opCode) + ";";
-            }
-
-            string formattedArgs = string.Empty;
-            if (args.Length == 1)
-            {
-                formattedArgs = FormatProtocolChunk(args[0]);
-            }
-            else
-            {
-                formattedArgs = string.Join(",", args.Select(FormatProtocolChunk).ToArray());
-            }
-
-            return FormatProtocolChunk(opCode) + "," + formattedArgs + ";";
-        }
-
-        public GuacConnection(Guid Id, WebSocketConnection webSocket, GuacDClient guacD, GuacOptions options, SymmetricCipher cipher, GlobalStore store, ILogger<GuacConnection> logger)
-        {
-            this.Id = Id;
+            Id = id;
             this.webSocket = webSocket;
             this.guacD = guacD;
             this.options = options;
-            this.cipher = cipher;
             this.store = store;
             this.logger = logger;
         }
 
-        public async Task StartAsync(IDictionary<string, StringValues> untrustedParams)
+        public async Task StartAsync(ConnectionProfile profile)
         {
             if (isStopped)
             {
@@ -85,18 +59,25 @@ namespace GLOKON.GuacWS.Server.Guac
 
             logger.LogInformation("[{id}] Starting GuacWS Connection", Id);
 
-            cts = new CancellationTokenSource();
+            ConnectionProfile = profile;
 
-            ParseToken(untrustedParams);
+            if (ConnectionProfile.Settings.TryGetValue("enable-drive", out string enableDriveStr) && bool.TryParse(enableDriveStr, out bool enableDrive) && enableDrive)
+            {
+                UserDrive = CreateUserDrive(Path.Combine(options.UserDriveRoot, Id.ToString()));
+                ConnectionProfile.Settings["drive-path"] = UserDrive;
+                ConnectionProfile.Settings["create-drive-path"] = "true";
+            }
+
+            cts = new CancellationTokenSource();
 
             await guacD.ConnectAsync();
 
             // Send Tunnel ID to Client
-            SendToWebSocket(FormatProtocolMessage(InternalDataOpCode, Id.ToString()));
+            SendToWebSocket(GuacProtocol.FormatProtocolMessage(InternalDataOpCode, Id.ToString()));
 
             // Send initial GuacD message
             handshakeMessage = string.Empty;
-            SendToGuacD(FormatProtocolMessage("select", ProtocolType.ToString().ToLower()));
+            SendToGuacD(GuacProtocol.FormatProtocolMessage("select", ConnectionProfile.Type.ToString().ToLower()));
             await FinishGuacDSendAsync(cts.Token).ConfigureAwait(false);
 
             logger.LogInformation("[{id}] Started GuacWS Connection", Id);
@@ -120,8 +101,8 @@ namespace GLOKON.GuacWS.Server.Guac
 
             try
             {
-                cts.Cancel();
-                cts.Dispose();
+                cts?.Cancel();
+                cts?.Dispose();
             }
             catch (Exception ex)
             {
@@ -148,9 +129,9 @@ namespace GLOKON.GuacWS.Server.Guac
 
             isStopped = true;
 
-            if (Settings.TryGetValue("drive-path", out string userDrive))
+            if (!string.IsNullOrEmpty(UserDrive))
             {
-                DeleteUserDrive(userDrive);
+                DeleteUserDrive(UserDrive);
             }
 
             logger.LogInformation("[{id}] Stopped GuacWS Connection", Id);
@@ -172,21 +153,13 @@ namespace GLOKON.GuacWS.Server.Guac
             return true;
         }
 
-        private static string FormatProtocolChunk(string chunk)
+        private static string CreateUserDrive(string userPath)
         {
-            string finalChunk = chunk ?? string.Empty;
-            return string.Format("{0}.{1}", finalChunk.Length, finalChunk);
-        }
-
-        private static string CreateUserDrive(string root, string userPath)
-        {
-            string finalUserPath = Path.Combine(root, userPath.TrimStart('/'));
-
             // Delete user path, start fresh
-            DeleteUserDrive(finalUserPath);
-            Directory.CreateDirectory(finalUserPath);
+            DeleteUserDrive(userPath);
+            Directory.CreateDirectory(userPath);
 
-            return finalUserPath;
+            return userPath;
         }
 
         private static void DeleteUserDrive(string userPath)
@@ -340,16 +313,16 @@ namespace GLOKON.GuacWS.Server.Guac
                 return false;
             }
 
-            SendToGuacD(FormatProtocolMessage("size", GetConnectionSetting("width"), GetConnectionSetting("height"), GetConnectionSetting("dpi")));
-            SendToGuacD(FormatProtocolMessage("audio", GetConnectionSetting("audio")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
-            SendToGuacD(FormatProtocolMessage("video", GetConnectionSetting("video")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
-            SendToGuacD(FormatProtocolMessage("image", GetConnectionSetting("image")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
-            SendToGuacD(FormatProtocolMessage("timezone", GetConnectionSetting("timezone")));
+            SendToGuacD(GuacProtocol.FormatProtocolMessage("size", GetConnectionSetting("width"), GetConnectionSetting("height"), GetConnectionSetting("dpi")));
+            SendToGuacD(GuacProtocol.FormatProtocolMessage("audio", GetConnectionSetting("audio")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+            SendToGuacD(GuacProtocol.FormatProtocolMessage("video", GetConnectionSetting("video")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+            SendToGuacD(GuacProtocol.FormatProtocolMessage("image", GetConnectionSetting("image")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+            SendToGuacD(GuacProtocol.FormatProtocolMessage("timezone", GetConnectionSetting("timezone")));
 
             string name = GetConnectionSetting("name");
             if (!string.IsNullOrEmpty(name))
             {
-                SendToGuacD(FormatProtocolMessage("name", name));
+                SendToGuacD(GuacProtocol.FormatProtocolMessage("name", name));
             }
 
             string[] parameterRequests = handshake.TrimEnd(';').Split(',');
@@ -357,7 +330,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
             foreach (string  parameterRequest in parameterRequests)
             {
-                string parameter = ParseOpCode(parameterRequest);
+                string parameter = GuacProtocol.GetData(parameterRequest);
                 if (parameter.StartsWith("VERSION_"))
                 {
                     parameter = "protocol_version";
@@ -370,7 +343,7 @@ namespace GLOKON.GuacWS.Server.Guac
                 }
             }
 
-            SendToGuacD(FormatProtocolMessage("connect", [.. parameterReplies]));
+            SendToGuacD(GuacProtocol.FormatProtocolMessage("connect", [.. parameterReplies]));
             await FinishGuacDSendAsync(cts.Token).ConfigureAwait(false);
 
             return true;
@@ -378,81 +351,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
         private string GetConnectionSetting(string parameter)
         {
-            return Settings.GetValueOrDefault(parameter, null);
-        }
-
-        private string ParseOpCode(string parameter)
-        {
-            return parameter.Substring(parameter.IndexOf('.') + 1);
-        }
-
-        private GuacToken ParseToken(IDictionary<string, StringValues> untrustedParams)
-        {
-            if (!untrustedParams.TryGetValue("token", out StringValues values))
-            {
-                throw new ArgumentNullException("token", "Token is missing from the query string");
-            }
-
-            // Decrypt the token and parse it
-            var serializeOptions = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            };
-            string encryptedTokenValue = Encoding.UTF8.GetString(Convert.FromBase64String(values.ToString()));
-            EncryptedToken parsedEncryptedToken = JsonSerializer.Deserialize<EncryptedToken>(encryptedTokenValue, serializeOptions);
-            string tokenValue = cipher.Decrypt(Convert.FromBase64String(parsedEncryptedToken.Value), Convert.FromBase64String(parsedEncryptedToken.IV));
-            GuacToken parsedToken = JsonSerializer.Deserialize<GuacToken>(tokenValue, serializeOptions);
-
-            // Add parameters from the token
-            ProtocolType = parsedToken.Connection.Type;
-            parsedToken.Connection.Settings
-                .ToList()
-                .ForEach(param =>
-                {
-                    switch (param.Value.ValueKind)
-                    {
-                        case JsonValueKind.Null:
-                            Settings.Add(param.Key, null);
-                            break;
-                        case JsonValueKind.False:
-                            Settings.Add(param.Key, "false");
-                            break;
-                        case JsonValueKind.True:
-                            Settings.Add(param.Key, "true");
-                            break;
-                        default:
-                            Settings.Add(param.Key, param.Value.ToString());
-                            break;
-                    }
-                });
-
-            // Add parameters that are not in the token, if permitted
-            HashSet<string> allowedUntrustedParams = options.AllowedParameters.Global;
-            string connectionType = parsedToken.Connection.Type.ToString().ToLower();
-
-            if (options.AllowedParameters.Connection.TryGetValue(connectionType, out HashSet<string> allowedConnParams))
-            {
-                allowedUntrustedParams.UnionWith(allowedConnParams);
-            }
-
-            untrustedParams
-                .Where(param =>
-                {
-                    // Token is a reserved keyword
-                    return param.Key != "token" && allowedUntrustedParams.Contains(param.Key);
-                })
-                .ToList()
-                .ForEach(param => 
-                {
-                    Settings[param.Key] = param.Value.ToString();
-                });
-
-            if (Settings.TryGetValue("drive-path", out string userDrive))
-            {
-                Settings["drive-path"] = CreateUserDrive(options.UserDriveRoot, userDrive);
-            }
-
-            return parsedToken;
+            return ConnectionProfile.Settings.GetValueOrDefault(parameter, null);
         }
 
         private void SendToGuacD(string message)

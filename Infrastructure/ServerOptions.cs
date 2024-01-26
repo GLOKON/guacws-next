@@ -12,6 +12,8 @@
 
         public ushort HttpsPort { get; set; } = 8081;
 
+        public long MaxUploadSize { get; set; } = 100_000_000;
+
         public bool UseHsts { get; set; } = false;
 
         public LetsEncryptOptions LetsEncrypt { get; set; } = new LetsEncryptOptions();

@@ -1,4 +1,4 @@
-﻿namespace GLOKON.GuacWS.Server.Guac.Parameters
+﻿namespace GLOKON.GuacWS.Server.Infrastructure.Token
 {
     internal class EncryptedToken
     {

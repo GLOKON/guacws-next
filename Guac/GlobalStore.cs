@@ -5,11 +5,11 @@ namespace GLOKON.GuacWS.Server.Guac
 {
     public class GlobalStore
     {
-        public byte[] PingData { get; private set; } = Array.Empty<byte>();
+        public byte[] PingData { get; private set; } = [];
 
         public void UpdatePing(long timestamp)
         {
-            PingData = Encoding.UTF8.GetBytes(GuacConnection.FormatProtocolMessage(GuacConnection.PingOpCode, timestamp.ToString()));
+            PingData = Encoding.UTF8.GetBytes(GuacProtocol.FormatProtocolMessage(GuacConnection.PingOpCode, timestamp.ToString()));
         }
     }
 }

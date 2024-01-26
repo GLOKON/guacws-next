@@ -7,8 +7,9 @@ using GLOKON.GuacWS.Server.Services;
 using GLOKON.GuacWS.Server.Guac;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using System.Collections.Immutable;
-using GLOKON.GuacWS.Server.Cipher;
+using GLOKON.GuacWS.Server.Infrastructure.Token;
+using System.Text.Json;
+using System.Security.Claims;
 
 namespace GLOKON.GuacWS.Server.Middlewares
 {
@@ -16,29 +17,29 @@ namespace GLOKON.GuacWS.Server.Middlewares
     {
         private readonly WebSocketConnectionsOptions options;
         private readonly RequestDelegate next;
-        private readonly SymmetricCipher cipher;
+        private readonly TokenAuthenticationOptions tokenOptions;
         private readonly GlobalStore store;
         private readonly ILogger<WebSocketConnection> webSocketConnLogger;
         private readonly ILogger<GuacDClient> guacDClientLogger;
         private readonly ILogger<GuacConnection> connLogger;
         private readonly GuacOptions guacOptions;
-        private readonly IWebSocketConnectionsService connectionsService;
+        private readonly IGuacConnectionsService connectionsService;
 
         public WebSocketConnectionsMiddleware(
             RequestDelegate next,
+            IOptionsMonitor<TokenAuthenticationOptions> tokenOptions,
             IOptions<WebSocketConnectionsOptions> options,
             IOptions<GuacOptions> guacOptions,
-            SymmetricCipher cipher,
             GlobalStore store,
             ILogger<WebSocketConnection> webSocketConnLogger,
             ILogger<GuacDClient> guacDClientLogger,
             ILogger<GuacConnection> connLogger,
-            IWebSocketConnectionsService connectionsService)
+            IGuacConnectionsService connectionsService)
         {
             this.options = options.Value;
             this.guacOptions = guacOptions.Value;
             this.next = next;
-            this.cipher = cipher;
+            this.tokenOptions = tokenOptions.CurrentValue;
             this.store = store;
             this.webSocketConnLogger = webSocketConnLogger;
             this.guacDClientLogger = guacDClientLogger;
@@ -50,8 +51,9 @@ namespace GLOKON.GuacWS.Server.Middlewares
         {
             if (context.WebSockets.IsWebSocketRequest)
             {
-                if (ValidateOrigin(context))
+                if (ValidateOrigin(context) && (context.User.Identity?.IsAuthenticated ?? false))
                 {
+                    ConnectionProfile profile = JsonSerializer.Deserialize<ConnectionProfile>(context.User.FindFirstValue(tokenOptions.TokenClaimName), tokenOptions.TokenSerializerOptions);
                     Guid connectionId = Guid.NewGuid();
 
                     connLogger.LogDebug("[{id}] Received a new WS request", connectionId);
@@ -67,12 +69,12 @@ namespace GLOKON.GuacWS.Server.Middlewares
                     using (WebSocketConnection webSocketConnection = new(connectionId, webSocket, options, webSocketConnLogger))
                     using (GuacDClient guacDClient = new(connectionId, guacOptions.GuacD, guacDClientLogger))
                     {
-                        connectionsService.AddConnection(connectionId, webSocketConnection);
-                        GuacConnection guacConnection = new(connectionId, webSocketConnection, guacDClient, guacOptions, cipher, store, connLogger);
+                        GuacConnection guacConnection = new(connectionId, webSocketConnection, guacDClient, guacOptions, store, connLogger);
+                        connectionsService.AddConnection(connectionId, guacConnection);
 
                         try
                         {
-                            await guacConnection.StartAsync(context.Request.Query.ToImmutableDictionary());
+                            await guacConnection.StartAsync(profile);
                         }
                         catch (Exception ex)
                         {

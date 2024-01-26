@@ -38,9 +38,9 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 
         public string? SubProtocol => webSocket.SubProtocol;
 
-        public WebSocketConnection(Guid Id, WebSocket webSocket, WebSocketConnectionsOptions options, ILogger<WebSocketConnection> logger)
+        public WebSocketConnection(Guid id, WebSocket webSocket, WebSocketConnectionsOptions options, ILogger<WebSocketConnection> logger)
         {
-            this.Id = Id;
+            Id = id;
             this.webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
             this.options = options;
             this.logger = logger;

@@ -29,9 +29,9 @@ namespace GLOKON.GuacWS.Server.Guac
 
         public PipeWriter Output => outputWriter;
 
-        public GuacDClient(Guid Id, GuacDOptions options, ILogger<GuacDClient> logger)
+        public GuacDClient(Guid id, GuacDOptions options, ILogger<GuacDClient> logger)
         {
-            this.Id = Id;
+            Id = id;
             this.options = options;
             this.logger = logger;
 
