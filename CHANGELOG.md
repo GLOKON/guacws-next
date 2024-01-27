@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/glokon/guacws-next/compare/v1.3.0...v1.3.1) (2024-01-27)
+
+
+### Bug Fixes
+
+* **guacd:** downgrade to guacd 1.5.3, because of a memory bug ([09d21ba](https://github.com/glokon/guacws-next/commit/09d21ba7054d8f95c989bc465e20f75a91f5130a))
+
 # [1.3.0](https://github.com/glokon/guacws-next/compare/v1.2.9...v1.3.0) (2024-01-26)
 
 
