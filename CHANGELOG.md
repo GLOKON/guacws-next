@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/glokon/guacws-next/compare/v1.3.1...v1.3.2) (2024-01-27)
+
+
+### Bug Fixes
+
+* **app:** add ability to join connection ([a3c08ff](https://github.com/glokon/guacws-next/commit/a3c08ffd54a3fd495da66c7885d679771a1815a3))
+
 ## [1.3.1](https://github.com/glokon/guacws-next/compare/v1.3.0...v1.3.1) (2024-01-27)
 
 
