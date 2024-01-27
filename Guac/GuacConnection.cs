@@ -77,7 +77,15 @@ namespace GLOKON.GuacWS.Server.Guac
 
             // Send initial GuacD message
             handshakeMessage = string.Empty;
-            SendToGuacD(GuacProtocol.FormatProtocolMessage("select", ConnectionProfile.Type.ToString().ToLower()));
+
+            // By default select the protocol, if the profile specifies an existing connection, use that instead
+            string connectionToSelect = ConnectionProfile.Type.ToString().ToLower();
+            if (!string.IsNullOrEmpty(ConnectionProfile.ExistingConnectionId))
+            {
+                connectionToSelect = ConnectionProfile.ExistingConnectionId;
+            }
+
+            SendToGuacD(GuacProtocol.FormatProtocolMessage("select", connectionToSelect));
             await FinishGuacDSendAsync(cts.Token).ConfigureAwait(false);
 
             logger.LogInformation("[{id}] Started GuacWS Connection", Id);

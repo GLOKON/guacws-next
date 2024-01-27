@@ -10,6 +10,8 @@ namespace GLOKON.GuacWS.Server.Infrastructure.Token
 
         public string Group { get; set; }
 
+        public string ExistingConnectionId { get; set; } = null;
+
         public Dictionary<string, T> Settings { get; set; } = [];
     }
 }

@@ -56,6 +56,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure.Token
                     {
                         Id = guacToken.Connection.Id,
                         Type = guacToken.Connection.Type,
+                        ExistingConnectionId = guacToken.Connection.ExistingConnectionId,
                         Group = guacToken.Connection.Group,
                     };
 
