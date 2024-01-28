@@ -1,3 +1,10 @@
+## [1.3.3](https://github.com/glokon/guacws-next/compare/v1.3.2...v1.3.3) (2024-01-28)
+
+
+### Bug Fixes
+
+* **app:** fix annoying xml encryption warning ([e8ac7a7](https://github.com/glokon/guacws-next/commit/e8ac7a7cefdfda2bb084fa8808c2c81cefd735d7))
+
 ## [1.3.2](https://github.com/glokon/guacws-next/compare/v1.3.1...v1.3.2) (2024-01-27)
 
 
