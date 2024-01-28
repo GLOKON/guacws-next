@@ -12,6 +12,9 @@ using System.Security.Cryptography;
 using GLOKON.GuacWS.Server.Guac;
 using GLOKON.GuacWS.Server.Infrastructure.Token;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.ConfigurationModel;
+using Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace GLOKON.GuacWS.Server
 {
@@ -62,6 +65,12 @@ namespace GLOKON.GuacWS.Server
                 });
             }
 
+            services.AddDataProtection()
+                .UseCryptographicAlgorithms(new AuthenticatedEncryptorConfiguration
+                {
+                    EncryptionAlgorithm = EncryptionAlgorithm.AES_256_CBC,
+                    ValidationAlgorithm = ValidationAlgorithm.HMACSHA256
+                });
             services.AddControllers();
             services.AddAuthentication(TokenAuthenticationOptions.Scheme)
                 .AddScheme<TokenAuthenticationOptions, TokenAuthenticationHandler>(TokenAuthenticationOptions.Scheme, null);
