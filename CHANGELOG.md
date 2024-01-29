@@ -1,3 +1,10 @@
+## [1.3.6](https://github.com/glokon/guacws-next/compare/v1.3.5...v1.3.6) (2024-01-29)
+
+
+### Bug Fixes
+
+* **app:** fix code smells ([2012d4f](https://github.com/glokon/guacws-next/commit/2012d4f85612e19aedc03f8ed9a240c28b553b0f))
+
 ## [1.3.5](https://github.com/glokon/guacws-next/compare/v1.3.4...v1.3.5) (2024-01-29)
 
 
