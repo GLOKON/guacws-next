@@ -1,3 +1,10 @@
+## [1.3.4](https://github.com/glokon/guacws-next/compare/v1.3.3...v1.3.4) (2024-01-29)
+
+
+### Bug Fixes
+
+* **server:** remove client certificate requirement ([c097435](https://github.com/glokon/guacws-next/commit/c097435e7519452265496b812e8cdee83055a768))
+
 ## [1.3.3](https://github.com/glokon/guacws-next/compare/v1.3.2...v1.3.3) (2024-01-28)
 
 
