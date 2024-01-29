@@ -1,3 +1,10 @@
+## [1.3.5](https://github.com/glokon/guacws-next/compare/v1.3.4...v1.3.5) (2024-01-29)
+
+
+### Bug Fixes
+
+* **scripts:** fix encodings ([39f83b0](https://github.com/glokon/guacws-next/commit/39f83b064e65b4b9443eae71e5c8aba33b17fad2))
+
 ## [1.3.4](https://github.com/glokon/guacws-next/compare/v1.3.3...v1.3.4) (2024-01-29)
 
 
