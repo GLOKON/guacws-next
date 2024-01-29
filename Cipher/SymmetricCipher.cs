@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -14,7 +14,7 @@ namespace GLOKON.GuacWS.Server.Cipher
         {
             if (string.IsNullOrEmpty(key))
             {
-                throw new ArgumentNullException("key", "Cipher key has not been provided");
+                throw new ArgumentNullException(nameof(key), "Cipher key has not been provided");
             }
 
             this.algorithm = algorithm;

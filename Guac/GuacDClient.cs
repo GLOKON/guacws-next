@@ -1,11 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
-using Org.BouncyCastle.Crypto.Macs;
+using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers;
 using System.IO;
 using System.IO.Pipelines;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,7 +12,7 @@ namespace GLOKON.GuacWS.Server.Guac
     {
         public const byte DataDelimiter = 0x3b; // Represents ';' in UTF8
         private readonly GuacDOptions options;
-        private readonly ILogger<GuacDClient> logger;
+        private readonly ILogger logger;
         private readonly TcpClient client;
         private readonly Pipe inputPipe;
         private PipeWriter outputWriter;
@@ -29,7 +26,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
         public PipeWriter Output => outputWriter;
 
-        public GuacDClient(Guid id, GuacDOptions options, ILogger<GuacDClient> logger)
+        public GuacDClient(Guid id, GuacDOptions options, ILogger logger)
         {
             Id = id;
             this.options = options;
@@ -48,14 +45,8 @@ namespace GLOKON.GuacWS.Server.Guac
 
         public void Dispose()
         {
-            if (isDisposed)
-            {
-                return;
-            }
-
-            logger.LogDebug("[{id}] Cleaning up GuacD client", Id);
-            client.Dispose();
-            isDisposed = true;
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         public async Task ConnectAsync()
@@ -114,13 +105,28 @@ namespace GLOKON.GuacWS.Server.Guac
                     }
                 }
             }
-            catch (OperationCanceledException) {}
+            catch (OperationCanceledException)
+            {
+                // Operation was cancelled, nothing to do
+            }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
                 logger.LogError(ex, "[{id}] Error occurred during receiving from GuacD", Id);
             }
 
             logger.LogDebug("[{id}] Finished running the GuacD client", Id);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            logger.LogDebug("[{id}] Cleaning up GuacD client", Id);
+            client.Dispose();
+            isDisposed = true;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using GLOKON.GuacWS.Server.Infrastructure;
+using GLOKON.GuacWS.Server.Infrastructure;
 using GLOKON.GuacWS.Server.Infrastructure.Token;
 using Microsoft.Extensions.Logging;
 using System;
@@ -22,7 +22,7 @@ namespace GLOKON.GuacWS.Server.Guac
         private readonly WebSocketConnection webSocket;
         private readonly GuacDClient guacD;
         private readonly GuacOptions options;
-        private readonly ILogger<GuacConnection> logger;
+        private readonly ILogger logger;
         private readonly GlobalStore store;
         private readonly ConcurrentQueue<byte[]> pendingWebSocketMessages = new();
 
@@ -39,7 +39,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
         public string UserDrive { get; private set; }
 
-        public GuacConnection(Guid id, WebSocketConnection webSocket, GuacDClient guacD, GuacOptions options, GlobalStore store, ILogger<GuacConnection> logger)
+        public GuacConnection(Guid id, WebSocketConnection webSocket, GuacDClient guacD, GuacOptions options, GlobalStore store, ILogger logger)
         {
             Id = id;
             this.webSocket = webSocket;
@@ -93,9 +93,9 @@ namespace GLOKON.GuacWS.Server.Guac
             StartActivityMonitor(options.PingFrequency, options.Timeout, cts.Token);
             await Task.WhenAny(
                 guacD.RunUntilCloseAsync(cts.Token),
-                ProcessGuacD(guacD.Input),
+                ProcessGuacDAsync(guacD.Input),
                 webSocket.RunUntilCloseAsync(cts.Token),
-                ProcessWebSocket(webSocket.Input));
+                ProcessWebSocketAsync(webSocket.Input));
         }
 
         public async Task StopAsync()
@@ -178,12 +178,18 @@ namespace GLOKON.GuacWS.Server.Guac
             }
         }
 
-        private async Task ProcessWebSocket(PipeReader reader)
+        private async Task ProcessWebSocketAsync(PipeReader reader)
         {
             try
             {
-                while (await reader.ReadAsync(cts.Token) is ReadResult result && !result.IsCompleted && !result.IsCanceled)
+                while (!cts.IsCancellationRequested)
                 {
+                    ReadResult result = await reader.ReadAsync(cts.Token);
+                    if (result.IsCompleted || result.IsCanceled)
+                    {
+                        break;
+                    }
+
                     ReadOnlySequence<byte> buffer = result.Buffer;
 
                     if (buffer.IsSingleSegment)
@@ -208,7 +214,10 @@ namespace GLOKON.GuacWS.Server.Guac
                     reader.AdvanceTo(buffer.End, buffer.End);
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+                // Operation was cancelled, nothing to do
+            }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
                 logger.LogError(ex, "[{id}] Error occurred during processing from WebSocket", Id);
@@ -218,12 +227,18 @@ namespace GLOKON.GuacWS.Server.Guac
             logger.LogDebug("[{id}] Finished processing from WebSocket", Id);
         }
 
-        private async Task ProcessGuacD(PipeReader reader)
+        private async Task ProcessGuacDAsync(PipeReader reader)
         {
             try
             {
-                while (await reader.ReadAsync(cts.Token) is ReadResult result && !result.IsCompleted && !result.IsCanceled)
+                while (!cts.IsCancellationRequested)
                 {
+                    ReadResult result = await reader.ReadAsync(cts.Token);
+                    if (result.IsCompleted || result.IsCanceled)
+                    {
+                        break;
+                    }
+
                     ReadOnlySequence<byte> buffer = result.Buffer;
 
                     while (TryReadGuacDMessage(ref buffer, out var messageBuffer))
@@ -265,7 +280,10 @@ namespace GLOKON.GuacWS.Server.Guac
                     reader.AdvanceTo(buffer.Start, buffer.End);
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+                // Operation was cancelled, nothing to do
+            }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
                 logger.LogError(ex, "[{id}] Error occurred during processing from GuacD", Id);
@@ -437,7 +455,7 @@ namespace GLOKON.GuacWS.Server.Guac
                         sendPing = true;
                     }
                 }
-            });
+            }, CancellationToken.None); // We do not need to cancel it, as loop will exit anyway
         }
     }
 }

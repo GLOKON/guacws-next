@@ -65,8 +65,14 @@
     <None Update="scripts\supervisor\guacws.conf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="user-drives\.gitkeep">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <EditorConfigFiles Remove=".\.editorconfig" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="user-drives\" />
   </ItemGroup>
 </Project>

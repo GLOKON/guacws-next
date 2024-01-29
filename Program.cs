@@ -1,4 +1,4 @@
-﻿using GLOKON.GuacWS.Server.Infrastructure;
+using GLOKON.GuacWS.Server.Infrastructure;
 using GLOKON.GuacWS.Server.Logger;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Builder;
@@ -14,9 +14,9 @@ using System.Net;
 
 namespace GLOKON.GuacWS.Server
 {
-    public class Program
+    public static class Program
     {
-        private static ILogger<Program> logger;
+        private static ILogger logger;
 
         private static readonly Queue<string> queuedLogMessages = new();
 
@@ -114,7 +114,7 @@ namespace GLOKON.GuacWS.Server
             });
 
             var app = builder.Build();
-            logger = app.Services.GetRequiredService<ILogger<Program>>();
+            logger = app.Services.GetRequiredService<ILogger<Startup>>();
             LogMessage("GuacWS Server is now running");
 
             while (queuedLogMessages.TryDequeue(out var message))

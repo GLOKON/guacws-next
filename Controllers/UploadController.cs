@@ -1,4 +1,4 @@
-﻿using GLOKON.GuacWS.Server.Infrastructure.Token;
+using GLOKON.GuacWS.Server.Infrastructure.Token;
 using GLOKON.GuacWS.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -84,7 +84,7 @@ namespace GLOKON.GuacWS.Server.Controllers
                 {
                     foreach (var formFile in files)
                     {
-                        var filePath = Path.GetTempFileName();
+                        var filePath = Path.GetRandomFileName();
 
                         using (var stream = System.IO.File.Create(filePath))
                         {
@@ -98,7 +98,11 @@ namespace GLOKON.GuacWS.Server.Controllers
                                 try
                                 {
                                     System.IO.File.Copy(filePath, Path.Combine(userDrive, fileName), true);
-                                } catch { }
+                                }
+                                catch
+                                {
+                                    // Safely ignore IO, as if we were not able to perform IO, its likely the file didnt exist in the first place
+                                }
                             }
                         }
                     }
@@ -117,7 +121,10 @@ namespace GLOKON.GuacWS.Server.Controllers
                         {
                             System.IO.File.Delete(file);
                         }
-                        catch { }
+                        catch
+                        {
+                            // Safely ignore IO, as if we were not able to perform IO, its likely the file didnt exist in the first place
+                        }
                     }
                 }
             }

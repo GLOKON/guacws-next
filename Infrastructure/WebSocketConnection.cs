@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Net.WebSockets;
@@ -13,7 +12,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 {
     internal class WebSocketConnection : IDuplexPipe, IDisposable
     {
-        private readonly ILogger<WebSocketConnection> logger;
+        private readonly ILogger logger;
         private readonly WebSocket webSocket;
         private readonly WebSocketConnectionsOptions options;
         private readonly Pipe inputPipe;
@@ -38,7 +37,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 
         public string? SubProtocol => webSocket.SubProtocol;
 
-        public WebSocketConnection(Guid id, WebSocket webSocket, WebSocketConnectionsOptions options, ILogger<WebSocketConnection> logger)
+        public WebSocketConnection(Guid id, WebSocket webSocket, WebSocketConnectionsOptions options, ILogger logger)
         {
             Id = id;
             this.webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
@@ -51,13 +50,8 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 
         public void Dispose()
         {
-            if (isDisposed)
-            {
-                return;
-            }
-
-            logger.LogDebug("[{id}] Cleaning up WS connection", Id);
-            isDisposed = true;
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         public async Task CloseAsync()
@@ -91,14 +85,31 @@ namespace GLOKON.GuacWS.Server.Infrastructure
             logger.LogDebug("[{id}] Finished running the WebSocket", Id);
         }
 
+        protected virtual void Dispose(bool disposing)
+        {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            logger.LogDebug("[{id}] Cleaning up WS connection", Id);
+            isDisposed = true;
+        }
+
         private async Task SendUntilCloseAsync(PipeReader reader, CancellationToken token)
         {
             try
             {
                 byte[] empty = [];
 
-                while (webSocket.State == WebSocketState.Open && !token.IsCancellationRequested && await reader.ReadAsync(token) is ReadResult result && !result.IsCompleted && !result.IsCanceled)
+                while (webSocket.State == WebSocketState.Open && !token.IsCancellationRequested)
                 {
+                    ReadResult result = await reader.ReadAsync(token);
+                    if (result.IsCompleted || result.IsCanceled)
+                    {
+                        break;
+                    }
+
                     ReadOnlySequence<byte> buffer = result.Buffer;
 
                     if (buffer.IsSingleSegment)
@@ -120,7 +131,10 @@ namespace GLOKON.GuacWS.Server.Infrastructure
                     reader.AdvanceTo(buffer.End, buffer.End);
                 }
             }
-            catch (OperationCanceledException) {}
+            catch (OperationCanceledException)
+            {
+                // Operation was cancelled, nothing to do
+            }
             catch (WebSocketException wsex) when (wsex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
             {
                 logger.LogError(wsex, "[{id}] Error occurred during receiving from WebSocket, closed prematurely", Id);
@@ -176,7 +190,10 @@ namespace GLOKON.GuacWS.Server.Infrastructure
                     }
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+                // Operation was cancelled, nothing to do
+            }
             catch (WebSocketException wsex) when (wsex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
             {
                 logger.LogError(wsex, "[{id}] Error occurred during receiving from WebSocket, closed prematurely", Id);
