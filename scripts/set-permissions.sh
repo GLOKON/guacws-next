@@ -1,11 +1,10 @@
-﻿#!/bin/sh
+#!/bin/bash
 
-SCRIPT_ROOT=$(dirname "$0")
-INSTALL_DIR=$(dirname "${SCRIPT_ROOT}/..")
+SCRIPT_ROOT="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+INSTALL_DIR=$(dirname "${SCRIPT_ROOT}")
 DAEMON_USER="guacd"
 
-if [ -z "$1" ]
-  then
+if [ -n "$1" ]; then
     DAEMON_USER="$1"
 fi
 

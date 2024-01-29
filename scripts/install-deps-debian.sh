@@ -1,32 +1,32 @@
-﻿#!/bin/sh
+#!/bin/bash
 
 echo "Install Base Dependencies"
 apt install -y pulseaudio \
     supervisor
 
-if [ -z "$1" ]; then
-echo "Instal GuacD Build Dependencies"
-apt install -y cairo-devel \
-    libjpeg-turbo-devel \
-    libjpeg-devel \
-    libpng-devel \
-    libtool \
-    libuuid-devel \
-    pulseaudio-libs-devel \
-    uuid-devel \
-    pulseaudio \
-    supervisor
+if [ "$1" = true ]; then
+# Build GuacD from source
+echo "Install GuacD Build Dependencies"
+apt install -y build-essential \
+    libcairo2-dev \
+    libjpeg-turbo8-dev \
+    libpng-dev \
+    libtool-bin \
+    libpulse-dev \
+    libssl-dev \
+    uuid-dev
 
 echo "Install GuacD Protocol Dependencies"
-apt install -y pango-devel \
-    freerdp-devel \
-    ffmpeg-devel \
-    libgcrypt-devel \
-    libssh2-devel \
-    libtelnet-devel \
-    libvncserver-devel \
-    libwebsockets-devel \
-    openssl-devel \
-    libvorbis-devel \
-    libwebp-devel
+apt install -y libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libswscale-dev \
+    freerdp2-dev \
+    libpango1.0-dev \
+    libssh2-1-dev \
+    libtelnet-dev \
+    libvncserver-dev \
+    libwebsockets-dev \
+    libvorbis-dev \
+    libwebp-dev
 fi

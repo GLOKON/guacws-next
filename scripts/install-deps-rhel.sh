@@ -1,21 +1,21 @@
-﻿#!/bin/sh
+#!/bin/bash
 
 echo "Install Base Dependencies"
 yum install -y pulseaudio \
     supervisor
 
-if [ -z "$1" ]; then
-echo "Instal GuacD Build Dependencies"
+if [ "$1" = true ]; then
+# Build GuacD from source
+echo "Install Build Tools"
+yum groupinstall -y 'Development Tools'
+echo "Install GuacD Build Dependencies"
 yum install -y cairo-devel \
     libjpeg-turbo-devel \
-    libjpeg-devel \
     libpng-devel \
     libtool \
     libuuid-devel \
-    pulseaudio-libs-devel \
-    uuid-devel \
-    pulseaudio \
-    supervisor
+    openssl-devel \
+    pulseaudio-libs-devel
 
 echo "Install GuacD Protocol Dependencies"
 yum install -y pango-devel \
@@ -26,7 +26,6 @@ yum install -y pango-devel \
     libtelnet-devel \
     libvncserver-devel \
     libwebsockets-devel \
-    openssl-devel \
     libvorbis-devel \
     libwebp-devel
 fi

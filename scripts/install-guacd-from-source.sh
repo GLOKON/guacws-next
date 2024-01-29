@@ -1,8 +1,8 @@
-﻿#!/bin/sh
+#!/bin/bash
 
-if [ -z "$1" ]
-  then
+if [ -z "$1" ]; then
     echo "Please specify the version"
+    exit
 fi
 
 GUAC_VERSION="$1"
@@ -19,4 +19,3 @@ make distclean || true && autoreconf -fi
 make && make install
 ldconfig
 rm -rf /tmp/guac-build*
-sudo supervisorctl update

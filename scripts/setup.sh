@@ -1,6 +1,5 @@
-﻿#!/bin/bash
+#!/bin/bash
 
-SCRIPT_ROOT=$(dirname "$0")
 GUAC_VERSION="1.5.3"
 DAEMON_USER="guacd"
 
@@ -21,7 +20,7 @@ while true; do
 done
 
 echo "Setting up GuacWS"
-if [ -z ${DEPENDENCIES_OS} ]; then
+if [ -n ${DEPENDENCIES_OS} ]; then
     case "$DEPENDENCIES_OS" in
         "debian" ) ./install-deps-debian.sh $BUILD_GUAC ;;
         "rhel" ) ./install-deps-rhel.sh $BUILD_GUAC ;;
@@ -34,8 +33,8 @@ sed -i \
     /etc/pulse/default.pa
 
 echo "Prepare GuacWS"
-groupadd ${DAEMON_USER}
-adduser ${DAEMON_USER} --system
+groupadd ${DAEMON_USER} || true
+adduser ${DAEMON_USER} --system || true
 usermod -a -G ${DAEMON_USER} ${DAEMON_USER}
 
 ./set-permissions.sh ${DAEMON_USER}
