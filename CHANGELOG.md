@@ -1,3 +1,10 @@
+## [1.3.7](https://github.com/glokon/guacws-next/compare/v1.3.6...v1.3.7) (2024-01-30)
+
+
+### Bug Fixes
+
+* **app:** fix bridge unstable message ([eeabdbf](https://github.com/glokon/guacws-next/commit/eeabdbfcf4990e2c12aabe52e82f54c17c4f0146))
+
 ## [1.3.6](https://github.com/glokon/guacws-next/compare/v1.3.5...v1.3.6) (2024-01-29)
 
 
