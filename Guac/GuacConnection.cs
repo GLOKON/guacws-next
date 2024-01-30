@@ -258,11 +258,10 @@ namespace GLOKON.GuacWS.Server.Guac
                         }
                     }
 
-                    // Send ping if we have to
+                    // Send ping if we have been signalled
                     if (sendPing)
                     {
-                        SendToWebSocket(store.PingData);
-                        sendPing = false;
+                        SendPingToWebSocket();
                     }
 
                     if (!handshakeReplySent && await TrySendGuacDHandshakeReplyAsync(handshakeMessage))
@@ -400,6 +399,12 @@ namespace GLOKON.GuacWS.Server.Guac
             return guacD.Output.FlushAsync(cancellationToken);
         }
 
+        private void SendPingToWebSocket()
+        {
+            SendToWebSocket(store.PingData);
+            sendPing = false;
+        }
+
         private void SendToWebSocket(string message)
         {
             SendToWebSocket(Encoding.UTF8.GetBytes(message));
@@ -450,7 +455,12 @@ namespace GLOKON.GuacWS.Server.Guac
                         hasActivity = false;
                     }
 
-                    if (handshakeReplySent && !sendPing)
+                    // If the handshake hasnt been sent, then we can write directly to web socket, if not we need to flag the writer thread
+                    if (!handshakeReplySent)
+                    {
+                        SendPingToWebSocket();
+                    }
+                    else if (!sendPing)
                     {
                         sendPing = true;
                     }
