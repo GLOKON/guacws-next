@@ -1,5 +1,6 @@
 #!/bin/bash
 
+SCRIPT_ROOT="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 GUAC_VERSION="1.5.3"
 DAEMON_USER="guacd"
 
@@ -22,8 +23,8 @@ done
 echo "Setting up GuacWS"
 if [ -n ${DEPENDENCIES_OS} ]; then
     case "$DEPENDENCIES_OS" in
-        "debian" ) ./install-deps-debian.sh $BUILD_GUAC ;;
-        "rhel" ) ./install-deps-rhel.sh $BUILD_GUAC ;;
+        "debian" ) ${SCRIPT_ROOT}/install-deps-debian.sh $BUILD_GUAC ;;
+        "rhel" ) ${SCRIPT_ROOT}/install-deps-rhel.sh $BUILD_GUAC ;;
     esac
 fi
 
@@ -37,12 +38,11 @@ groupadd ${DAEMON_USER} || true
 adduser ${DAEMON_USER} --system || true
 usermod -a -G ${DAEMON_USER} ${DAEMON_USER}
 
-./set-permissions.sh ${DAEMON_USER}
+${SCRIPT_ROOT}/set-permissions.sh ${DAEMON_USER}
 
 if [ "$BUILD_GUAC" = true ]; then
-    ./install-guacd-from-source.sh ${GUAC_VERSION}
+    ${SCRIPT_ROOT}/install-guacd-from-source.sh ${GUAC_VERSION}
 fi
 
-supervisorctl update
-
 echo "GuacWS has been Setup"
+echo "Please place the correct supervisord config files, then run `supervisorctl update`"
