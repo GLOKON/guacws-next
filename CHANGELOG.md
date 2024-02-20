@@ -1,3 +1,10 @@
+## [1.3.8](https://github.com/glokon/guacws-next/compare/v1.3.7...v1.3.8) (2024-02-20)
+
+
+### Bug Fixes
+
+* **scripts:** tweak scrips root ([aa294d8](https://github.com/glokon/guacws-next/commit/aa294d8693f768ad07dfa0b424036ee0bd47a73d))
+
 ## [1.3.7](https://github.com/glokon/guacws-next/compare/v1.3.6...v1.3.7) (2024-01-30)
 
 
