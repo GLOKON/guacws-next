@@ -15,7 +15,8 @@ yum install -y cairo-devel \
     libtool \
     libuuid-devel \
     openssl-devel \
-    pulseaudio-libs-devel
+    pulseaudio-libs-devel \
+    gcc gcc-c++
 
 echo "Install GuacD Protocol Dependencies"
 yum install -y pango-devel \

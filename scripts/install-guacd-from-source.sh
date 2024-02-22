@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ -z "$1" ]; then
-    echo "Please specify the version"
+    echo "Please specify the version of GuacD to build"
     exit
 fi
 

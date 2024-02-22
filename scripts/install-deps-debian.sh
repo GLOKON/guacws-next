@@ -14,7 +14,8 @@ apt install -y build-essential \
     libtool-bin \
     libpulse-dev \
     libssl-dev \
-    uuid-dev
+    uuid-dev \
+    gcc gcc-c++
 
 echo "Install GuacD Protocol Dependencies"
 apt install -y libavcodec-dev \
