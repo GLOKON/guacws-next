@@ -1,3 +1,10 @@
+## [1.3.9](https://github.com/glokon/guacws-next/compare/v1.3.8...v1.3.9) (2024-02-22)
+
+
+### Bug Fixes
+
+* **scripts:** add script to add ghostscript ([5c13603](https://github.com/glokon/guacws-next/commit/5c13603878109d609c5bf16c106e8cd3daed76b5))
+
 ## [1.3.8](https://github.com/glokon/guacws-next/compare/v1.3.7...v1.3.8) (2024-02-20)
 
 
