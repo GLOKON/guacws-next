@@ -46,7 +46,8 @@ namespace GLOKON.GuacWS.Server.Controllers
                         foreach (var formFile in files)
                         {
                             string fileName = Path.GetFileName(formFile.FileName) ?? Guid.NewGuid().ToString();
-                            var filePath = Path.Combine(connection.UserDrive, fileName);
+                            string filePath = Path.Combine(connection.UserDrive, fileName);
+                            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
                             using (var stream = System.IO.File.Create(filePath))
                             {
@@ -84,11 +85,11 @@ namespace GLOKON.GuacWS.Server.Controllers
                 {
                     foreach (var formFile in files)
                     {
-                        var filePath = Path.GetRandomFileName();
+                        var srcPath = Path.GetRandomFileName();
 
-                        using (var stream = System.IO.File.Create(filePath))
+                        using (var stream = System.IO.File.Create(srcPath))
                         {
-                            tempFilesToDelete.Add(filePath);
+                            tempFilesToDelete.Add(srcPath);
                             await formFile.CopyToAsync(stream, cancellationToken);
 
                             string fileName = Path.GetFileName(formFile.FileName) ?? Guid.NewGuid().ToString();
@@ -97,7 +98,9 @@ namespace GLOKON.GuacWS.Server.Controllers
                             {
                                 try
                                 {
-                                    System.IO.File.Copy(filePath, Path.Combine(userDrive, fileName), true);
+                                    string destPath = Path.Combine(userDrive, fileName);
+                                    Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                                    System.IO.File.Copy(srcPath, destPath, true);
                                 }
                                 catch
                                 {
