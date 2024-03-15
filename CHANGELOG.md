@@ -1,3 +1,10 @@
+## [1.3.10](https://github.com/glokon/guacws-next/compare/v1.3.9...v1.3.10) (2024-03-15)
+
+
+### Bug Fixes
+
+* **app:** add ability to upload to any path ([2e251cc](https://github.com/glokon/guacws-next/commit/2e251cce7142d8d02ac7a6e119f0e857a582a821))
+
 ## [1.3.9](https://github.com/glokon/guacws-next/compare/v1.3.8...v1.3.9) (2024-02-22)
 
 
