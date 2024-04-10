@@ -1,3 +1,10 @@
+## [1.3.12](https://github.com/glokon/guacws-next/compare/v1.3.11...v1.3.12) (2024-04-10)
+
+
+### Bug Fixes
+
+* **app:** fix using cors ([c0333e4](https://github.com/glokon/guacws-next/commit/c0333e4e7cdd85dbc4c911cabdb3107f117b8fbb))
+
 ## [1.3.11](https://github.com/glokon/guacws-next/compare/v1.3.10...v1.3.11) (2024-04-10)
 
 
