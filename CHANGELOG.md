@@ -1,3 +1,10 @@
+## [1.3.11](https://github.com/glokon/guacws-next/compare/v1.3.10...v1.3.11) (2024-04-10)
+
+
+### Bug Fixes
+
+* **auth:** simplify auth setup ([0115d48](https://github.com/glokon/guacws-next/commit/0115d4854628c0aea70812556176eb5cc6832d35))
+
 ## [1.3.10](https://github.com/glokon/guacws-next/compare/v1.3.9...v1.3.10) (2024-03-15)
 
 
