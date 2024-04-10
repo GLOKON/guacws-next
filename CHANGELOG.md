@@ -1,3 +1,10 @@
+## [1.3.14](https://github.com/glokon/guacws-next/compare/v1.3.13...v1.3.14) (2024-04-10)
+
+
+### Bug Fixes
+
+* **server:** fix upload files ([a577833](https://github.com/glokon/guacws-next/commit/a57783391a835cb716818364f992ede10b7588a4))
+
 ## [1.3.13](https://github.com/glokon/guacws-next/compare/v1.3.12...v1.3.13) (2024-04-10)
 
 
