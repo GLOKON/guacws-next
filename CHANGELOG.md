@@ -1,3 +1,10 @@
+## [1.3.13](https://github.com/glokon/guacws-next/compare/v1.3.12...v1.3.13) (2024-04-10)
+
+
+### Bug Fixes
+
+* **scripts:** fix setup scripts ([d1ff24e](https://github.com/glokon/guacws-next/commit/d1ff24e87c181cd272f3306129d7ec33dbf50277))
+
 ## [1.3.12](https://github.com/glokon/guacws-next/compare/v1.3.11...v1.3.12) (2024-04-10)
 
 
