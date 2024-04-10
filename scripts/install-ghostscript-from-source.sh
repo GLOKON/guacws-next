@@ -10,10 +10,10 @@ GS_VERSION="$1"
 echo "Install GhostScript from source"
 rm -rf /tmp/ghostscript-build*
 mkdir /tmp/ghostscript-build
-wget -O /tmp/ghostscript-build.tar.gz https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/${GS_VERSION//./}/ghostscript-${GS_VERSION}.tar.gz
+wget -O /tmp/ghostscript-build.tar.gz https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs${GS_VERSION//./}/ghostscript-${GS_VERSION}.tar.gz
 tar -zxvf /tmp/ghostscript-build.tar.gz --directory /tmp/ghostscript-build --strip-components 1
 cd /tmp/ghostscript-build/
-./configure --prefix=/usr --enable-dynamic --disable-compile-inits --with-system-libtiff
+./configure --prefix=/usr --enable-dynamic --disable-compile-inits --with-system-libtiff --disable-hidden-visibility
 make
 make so
 sudo make install
