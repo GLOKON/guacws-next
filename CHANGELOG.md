@@ -1,3 +1,10 @@
+## [1.3.15](https://github.com/glokon/guacws-next/compare/v1.3.14...v1.3.15) (2024-04-10)
+
+
+### Bug Fixes
+
+* **scripts:** point to GUAC latest ([9dff88d](https://github.com/glokon/guacws-next/commit/9dff88dec2f3b92797a29cc7422c41958ac5f1d4))
+
 ## [1.3.14](https://github.com/glokon/guacws-next/compare/v1.3.13...v1.3.14) (2024-04-10)
 
 
