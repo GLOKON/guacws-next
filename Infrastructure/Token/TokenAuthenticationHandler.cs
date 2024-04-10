@@ -1,4 +1,4 @@
-﻿using GLOKON.GuacWS.Server.Cipher;
+using GLOKON.GuacWS.Server.Cipher;
 using GLOKON.GuacWS.Server.Guac;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
@@ -50,39 +50,10 @@ namespace GLOKON.GuacWS.Server.Infrastructure.Token
                     EncryptedToken parsedEncryptedToken = JsonSerializer.Deserialize<EncryptedToken>(encryptedTokenValue, Options.TokenSerializerOptions);
                     string tokenValue = cipher.Decrypt(Convert.FromBase64String(parsedEncryptedToken.Value), Convert.FromBase64String(parsedEncryptedToken.IV));
                     Token guacToken = JsonSerializer.Deserialize<Token>(tokenValue, Options.TokenSerializerOptions);
-
-                    // TODO: Is there a way to do this?
-                    ConnectionProfile newToken = new()
-                    {
-                        Id = guacToken.Connection.Id,
-                        Type = guacToken.Connection.Type,
-                        ExistingConnectionId = guacToken.Connection.ExistingConnectionId,
-                        Group = guacToken.Connection.Group,
-                    };
-
-                    guacToken.Connection.Settings
-                        .ToList()
-                        .ForEach(param =>
-                        {
-                            switch (param.Value.ValueKind)
-                            {
-                                case JsonValueKind.Null:
-                                    newToken.Settings.Add(param.Key, null);
-                                    break;
-                                case JsonValueKind.False:
-                                    newToken.Settings.Add(param.Key, "false");
-                                    break;
-                                case JsonValueKind.True:
-                                    newToken.Settings.Add(param.Key, "true");
-                                    break;
-                                default:
-                                    newToken.Settings.Add(param.Key, param.Value.ToString());
-                                    break;
-                            }
-                        });
+                    ConnectionProfile connectionProfile = ConnectionProfile.FromJsonConnectionProfile(guacToken.Connection);
 
                     HashSet<string> allowedUntrustedParams = new(guacOptions.AllowedParameters.Global);
-                    string connectionType = newToken.Type.ToString().ToLower();
+                    string connectionType = connectionProfile.Type.ToString().ToLower();
 
                     if (guacOptions.AllowedParameters.Connection.TryGetValue(connectionType, out HashSet<string> allowedConnParams))
                     {
@@ -99,10 +70,10 @@ namespace GLOKON.GuacWS.Server.Infrastructure.Token
                         .ForEach(param =>
                         {
                             // Add or update the params
-                            newToken.Settings[param.Key] = param.Value.ToString();
+                            connectionProfile.Settings[param.Key] = param.Value.ToString();
                         });
 
-                    var claims = new List<Claim>() { new(Options.TokenClaimName, JsonSerializer.Serialize(newToken, Options.TokenSerializerOptions)) };
+                    var claims = new List<Claim>() { new(Options.TokenClaimName, JsonSerializer.Serialize(connectionProfile, Options.TokenSerializerOptions)) };
 
                     return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(new ClaimsIdentity(claims, "TokenAuth")), Scheme.Name)));
                 }
