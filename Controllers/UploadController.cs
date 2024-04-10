@@ -45,11 +45,11 @@ namespace GLOKON.GuacWS.Server.Controllers
                     {
                         foreach (var formFile in files)
                         {
-                            string fileName = Path.GetFileName(formFile.FileName) ?? Guid.NewGuid().ToString();
-                            string filePath = Path.Combine(connection.UserDrive, fileName);
-                            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+                            string fileName = formFile.FileName ?? Guid.NewGuid().ToString();
+                            string destPath = connection.UserDrive.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar + fileName;
+                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
 
-                            using (var stream = System.IO.File.Create(filePath))
+                            using (var stream = System.IO.File.Create(destPath))
                             {
                                 await formFile.CopyToAsync(stream, cancellationToken);
                             }
@@ -91,21 +91,21 @@ namespace GLOKON.GuacWS.Server.Controllers
                         {
                             tempFilesToDelete.Add(srcPath);
                             await formFile.CopyToAsync(stream, cancellationToken);
+                        }
 
-                            string fileName = Path.GetFileName(formFile.FileName) ?? Guid.NewGuid().ToString();
+                        string fileName = formFile.FileName ?? Guid.NewGuid().ToString();
 
-                            foreach (var userDrive in userDrives)
+                        foreach (var userDrive in userDrives)
+                        {
+                            try
                             {
-                                try
-                                {
-                                    string destPath = Path.Combine(userDrive, fileName);
-                                    Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                                    System.IO.File.Copy(srcPath, destPath, true);
-                                }
-                                catch
-                                {
-                                    // Safely ignore IO, as if we were not able to perform IO, its likely the file didnt exist in the first place
-                                }
+                                string destPath = userDrive.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar + fileName;
+                                Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                                System.IO.File.Copy(srcPath, destPath, true);
+                            }
+                            catch
+                            {
+                                // Safely ignore IO, as if we were not able to perform IO, its likely the file didnt exist in the first place
                             }
                         }
                     }
