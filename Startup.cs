@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +11,6 @@ using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 using GLOKON.GuacWS.Server.Guac;
 using GLOKON.GuacWS.Server.Infrastructure.Token;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.ConfigurationModel;
 using Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption;
 using Microsoft.AspNetCore.DataProtection;
@@ -35,6 +34,16 @@ namespace GLOKON.GuacWS.Server
             services.Configure<CipherOptions>(Configuration.GetRequiredSection("Cipher"));
             services.Configure<WebSocketConnectionsOptions>(Configuration.GetRequiredSection("WebSocket"));
             services.Configure<GuacOptions>(Configuration.GetRequiredSection("Guac"));
+
+            services.AddCors(options =>
+            {
+                options.AddDefaultPolicy(policy =>
+                {
+                    policy.AllowAnyOrigin()
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+                });
+            });
 
             services.AddSingleton<GlobalStore>();
             services.AddSingleton((services) =>
@@ -101,6 +110,7 @@ namespace GLOKON.GuacWS.Server
             app.UseDefaultFiles()
                 .UseWebSockets()
                 .UseRouting()
+                .UseCors()
                 .UseAuthentication()
                 .UseAuthorization()
                 .UseWebSocketConnectionMiddleware()
