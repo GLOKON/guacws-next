@@ -1,3 +1,10 @@
+## [1.3.16](https://github.com/glokon/guacws-next/compare/v1.3.15...v1.3.16) (2024-04-16)
+
+
+### Bug Fixes
+
+* **docker:** use latest guacd ([9c4adde](https://github.com/glokon/guacws-next/commit/9c4addef37b34eb8b4c790b529aa2f0a42ed4b16))
+
 ## [1.3.15](https://github.com/glokon/guacws-next/compare/v1.3.14...v1.3.15) (2024-04-10)
 
 
