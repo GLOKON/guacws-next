@@ -1,4 +1,4 @@
-﻿namespace GLOKON.GuacWS.Server.Infrastructure
+namespace GLOKON.GuacWS.Server.Infrastructure
 {
     public class ServerOptions
     {

@@ -1,5 +1,3 @@
-﻿using System.IO;
-
 namespace GLOKON.GuacWS.Server.Infrastructure
 {
     public class SslOptions
@@ -10,7 +8,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure
 
         public bool IsEnabled()
         {
-            return !string.IsNullOrEmpty(CertificatePath) && File.Exists(CertificatePath);
+            return !string.IsNullOrEmpty(CertificatePath);
         }
     }
 }

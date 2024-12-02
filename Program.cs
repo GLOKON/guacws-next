@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 
 namespace GLOKON.GuacWS.Server
@@ -62,6 +63,11 @@ namespace GLOKON.GuacWS.Server
                             }
                             else if (serverOptions.SSL.IsEnabled())
                             {
+                                if (!File.Exists(serverOptions.SSL.CertificatePath))
+                                {
+                                    LogMessage(string.Format("Failed to find SSL certificate: {0}", serverOptions.SSL.CertificatePath));
+                                }
+
                                 kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
                                 {
                                     listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
