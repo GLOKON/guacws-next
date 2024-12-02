@@ -25,7 +25,7 @@ jobs:
     - name: Build Server (${{ matrix.rid }})
       run: dotnet publish -r ${{ matrix.rid }} -o ./dist/${{ matrix.rid }} -c Release ./GLOKON.GuacWS.Server.csproj
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.rid }}
         path: dist/${{ matrix.rid }}
