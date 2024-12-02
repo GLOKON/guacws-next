@@ -1,3 +1,11 @@
+## [1.3.17](https://github.com/glokon/guacws-next/compare/v1.3.16...v1.3.17) (2024-12-02)
+
+
+### Bug Fixes
+
+* **app:** fix upload artifact ([7020baa](https://github.com/glokon/guacws-next/commit/7020baa16464d47950970f15c4e13e3dba045d6f))
+* **app:** tweak loading of config ([f9ad19f](https://github.com/glokon/guacws-next/commit/f9ad19f5ba7a1933339118d199f76b3c13db128d))
+
 ## [1.3.16](https://github.com/glokon/guacws-next/compare/v1.3.15...v1.3.16) (2024-04-16)
 
 
