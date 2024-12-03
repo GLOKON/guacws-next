@@ -1,3 +1,10 @@
+## [1.3.18](https://github.com/glokon/guacws-next/compare/v1.3.17...v1.3.18) (2024-12-03)
+
+
+### Bug Fixes
+
+* **app:** fix SSL loading ([2337205](https://github.com/glokon/guacws-next/commit/2337205c7d9ca63a9598f702e1af3e40d56135bf))
+
 ## [1.3.17](https://github.com/glokon/guacws-next/compare/v1.3.16...v1.3.17) (2024-12-02)
 
 
