@@ -66,15 +66,16 @@ namespace GLOKON.GuacWS.Server
                                 if (!File.Exists(serverOptions.SSL.CertificatePath))
                                 {
                                     LogMessage(string.Format("Failed to find SSL certificate: {0}", serverOptions.SSL.CertificatePath));
-                                }
-
-                                kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
+                                } else
                                 {
-                                    listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
-                                    listenOptions.UseHttps(serverOptions.SSL.CertificatePath, serverOptions.SSL.CertificatePassword);
-                                });
+                                    kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
+                                    {
+                                        listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+                                        listenOptions.UseHttps(serverOptions.SSL.CertificatePath, serverOptions.SSL.CertificatePassword);
+                                    });
 
-                                LogMessage(string.Format("Listening (SSL): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort));
+                                    LogMessage(string.Format("Listening (SSL): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort));
+                                }
                             }
                             else if (context.HostingEnvironment.IsDevelopment())
                             {
