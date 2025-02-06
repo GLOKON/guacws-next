@@ -1,0 +1,17 @@
+[Unit]
+Description=GuacWS service
+After=guacd.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=guacd
+StandardOutput=file:/var/log/guacws.out.log
+StandardError=file:/var/log/guacws.err.log
+WorkingDirectory=/etc/guacws
+ExecStart=/etc/guacws/GLOKON.GuacWS.Server
+
+[Install]
+WantedBy=multi-user.target

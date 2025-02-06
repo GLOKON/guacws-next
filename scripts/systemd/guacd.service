@@ -1,0 +1,16 @@
+[Unit]
+Description=GuacD service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=guacd
+StandardOutput=file:/var/log/guacd.out.log
+StandardError=file:/var/log/guacd.err.log
+ExecStart=guacd -b 127.0.0.1 -l 4822 -f
+
+[Install]
+WantedBy=multi-user.target

@@ -1,8 +1,7 @@
 #!/bin/bash
 
 echo "Install Base Dependencies"
-yum install -y pulseaudio \
-    supervisor
+yum install -y pulseaudio
 
 if [ "$1" = true ]; then
 # Build GuacD from source
