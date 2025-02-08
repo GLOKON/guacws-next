@@ -95,14 +95,12 @@ jobs:
         run: |
           platform=${{ inputs.dockerPlatform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-          image=${{ inputs.dockerImage }}
-          echo "IMAGE_NAME=${image,,}" >> $GITHUB_ENV
           
       - name: (Docker) Extract metadata (tags, labels)
         if: inputs.docker == true
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ inputs.dockerImage }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -125,7 +123,7 @@ jobs:
           context: .
           platforms: ${{ inputs.dockerPlatform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,"name=${{ env.IMAGE_NAME }}",push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,"name=${{ inputs.dockerImage }}",push-by-digest=true,name-canonical=true,push=true
 
       - name: (Docker) Export digest
         if: inputs.docker == true
