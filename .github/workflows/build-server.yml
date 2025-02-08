@@ -74,7 +74,6 @@ jobs:
         with:
           role-to-assume: ${{ secrets.awsRole }}
           aws-region: ${{ inputs.awsBucketRegion }}
-          
       
       - name: (Docker) Login to DockerHub
         if: inputs.publish == true && inputs.docker == true
@@ -105,8 +104,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},value=${{ inputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag }}
 
       - name: Setup dotnet
         uses: actions/setup-dotnet@v4
