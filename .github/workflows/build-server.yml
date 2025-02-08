@@ -73,7 +73,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.awsRole }}
-          aws-region: ${{ inputs.awsRegion }}
+          aws-region: ${{ inputs.awsBucketRegion }}
           
       
       - name: (Docker) Login to DockerHub
