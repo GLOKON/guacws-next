@@ -4,9 +4,9 @@
     "net8.0": {
       "LettuceEncrypt": {
         "type": "Direct",
-        "requested": "[1.3.0, )",
-        "resolved": "1.3.0",
-        "contentHash": "VP3ojAZAE4/qV7rL30MECoRz1us6GlqtIE1IVGVNKd+Hv17oF6zasc/LnkRnzbimWVhXJW8HoJ2o9Piv/7xQpw==",
+        "requested": "[1.3.3, )",
+        "resolved": "1.3.3",
+        "contentHash": "tZhLPo3lUkKmvq3qwLfCtz67M+LzkExR3iLuy7a00WBh6da8iakj5UwB81kzc7XEPynFcsfeZUVsaEv82j5LaA==",
         "dependencies": {
           "Certes": "3.0.4",
           "McMaster.AspNetCore.Kestrel.Certificates": "1.0.0"
