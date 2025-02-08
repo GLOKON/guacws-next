@@ -122,6 +122,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
+          context: .
           platforms: ${{ inputs.dockerPlatform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ env.IMAGE_NAME }}",push-by-digest=true,name-canonical=true,push=true
