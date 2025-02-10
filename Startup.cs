@@ -14,6 +14,9 @@ using GLOKON.GuacWS.Server.Infrastructure.Token;
 using Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.ConfigurationModel;
 using Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
+using Serilog.Events;
+using Serilog;
 
 namespace GLOKON.GuacWS.Server
 {
@@ -22,12 +25,24 @@ namespace GLOKON.GuacWS.Server
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(Configuration)
+                .MinimumLevel.Override("Microsoft.AspNetCore.Mvc.Internal", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.AspNetCore.DataProtection", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.AspNetCore.Authentication", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.AspNetCore.Hosting", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.AspNetCore.Mvc", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning)
+                .WriteTo.Console()
+                .CreateLogger();
         }
 
         public IConfiguration Configuration { get; }
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddSerilog();
+
             var serverSection = Configuration.GetRequiredSection("Server");
             ServerOptions serverOptions = serverSection.Get<ServerOptions>();
             services.Configure<ServerOptions>(serverSection);
@@ -74,6 +89,18 @@ namespace GLOKON.GuacWS.Server
                 });
             }
 
+            services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+                foreach (var trustedProxy in serverOptions.TrustedProxies)
+                {
+                    if (IPNetwork.TryParse(trustedProxy, out var trustedNetwork) && trustedNetwork != null)
+                    {
+                        options.KnownNetworks.Add(trustedNetwork);
+                    }
+                }
+            });
             services.AddDataProtection()
                 .UseCryptographicAlgorithms(new AuthenticatedEncryptorConfiguration
                 {
@@ -88,6 +115,8 @@ namespace GLOKON.GuacWS.Server
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IOptions<ServerOptions> serverOptionsVal)
         {
+            app.UseForwardedHeaders();
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -117,6 +146,7 @@ namespace GLOKON.GuacWS.Server
                 .UseEndpoints(endpoints =>
                 {
                     endpoints.MapControllers();
+                    endpoints.MapFallbackToFile("/index.html");
                 })
                 .UseStaticFiles();
         }

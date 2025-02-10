@@ -1,15 +1,12 @@
 using GLOKON.GuacWS.Server.Infrastructure;
-using GLOKON.GuacWS.Server.Logger;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
-using System.Collections.Generic;
+using Serilog;
 using System.IO;
 using System.Net;
 
@@ -17,10 +14,6 @@ namespace GLOKON.GuacWS.Server
 {
     public static class Program
     {
-        private static ILogger logger;
-
-        private static readonly Queue<string> queuedLogMessages = new();
-
         public static void Main(string[] args)
         {
             var  builder = WebHost.CreateDefaultBuilder<Startup>(args)
@@ -46,7 +39,7 @@ namespace GLOKON.GuacWS.Server
                         {
                             IPAddress listenAddress = IPAddress.Parse(serverOptions.ListenOn);
                             kestrelOptions.Listen(listenAddress, serverOptions.HttpPort);
-                            LogMessage(string.Format("Listening (HTTP): http://{0}:{1}", listenAddress.ToString(), serverOptions.HttpPort));
+                            Log.Information("Listening (HTTP): http://{0}:{1}", listenAddress.ToString(), serverOptions.HttpPort);
 
                             if (serverOptions.LetsEncrypt.IsEnabled())
                             {
@@ -59,14 +52,15 @@ namespace GLOKON.GuacWS.Server
                                     });
                                 });
 
-                                LogMessage(string.Format("Listening (LetsEncrypt): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort));
+                                Log.Information("Listening (LetsEncrypt): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort);
                             }
                             else if (serverOptions.SSL.IsEnabled())
                             {
                                 if (!File.Exists(serverOptions.SSL.CertificatePath))
                                 {
-                                    LogMessage(string.Format("Failed to find SSL certificate: {0}", serverOptions.SSL.CertificatePath));
-                                } else
+                                    Log.Information("Failed to find SSL certificate: {0}", serverOptions.SSL.CertificatePath);
+                                }
+                                else
                                 {
                                     kestrelOptions.Listen(listenAddress, serverOptions.HttpsPort, listenOptions =>
                                     {
@@ -74,7 +68,7 @@ namespace GLOKON.GuacWS.Server
                                         listenOptions.UseHttps(serverOptions.SSL.CertificatePath, serverOptions.SSL.CertificatePassword);
                                     });
 
-                                    LogMessage(string.Format("Listening (SSL): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort));
+                                    Log.Information("Listening (SSL): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort);
                                 }
                             }
                             else if (context.HostingEnvironment.IsDevelopment())
@@ -86,61 +80,28 @@ namespace GLOKON.GuacWS.Server
                                     listenOptions.UseHttps();
                                 });
 
-                                LogMessage(string.Format("Listening (DevSSL): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort));
+                                Log.Information("Listening (DevSSL): https://{0}:{1}", listenAddress.ToString(), serverOptions.HttpsPort);
                             }
                         }
 
                         if (!string.IsNullOrEmpty(serverOptions.ListenOnSocket))
                         {
                             kestrelOptions.ListenUnixSocket(serverOptions.ListenOnSocket);
-                            LogMessage(string.Format("Listening (Unix Socket): {0}", serverOptions.ListenOnSocket));
+                            Log.Information("Listening (Unix Socket): {0}", serverOptions.ListenOnSocket);
                         }
 
                         if (!string.IsNullOrEmpty(serverOptions.ListenOnNamedPipe))
                         {
                             kestrelOptions.ListenNamedPipe(serverOptions.ListenOnNamedPipe);
-                            LogMessage(string.Format("Listening (Named Pipe): {0}", serverOptions.ListenOnNamedPipe));
+                            Log.Information("Listening (Named Pipe): {0}", serverOptions.ListenOnNamedPipe);
                         }
                     }
                 })
                 .UseUrls();
 
-            builder.ConfigureLogging((logBuilder) =>
-            {
-                logBuilder.AddConsoleFormatter<WebConsoleFormatter, SimpleConsoleFormatterOptions>((options) =>
-                {
-                    options.SingleLine = true;
-                    options.IncludeScopes = false;
-                    options.ColorBehavior = LoggerColorBehavior.Default;
-                    options.TimestampFormat = "dd/MM/yyyy HH:mm:ss.fff ";
-                });
-                logBuilder.AddConsole((options) =>
-                {
-                    options.FormatterName = "webconsole";
-                });
-            });
-
             var app = builder.Build();
-            logger = app.Services.GetRequiredService<ILogger<Startup>>();
-            LogMessage("GuacWS Server is now running");
-
-            while (queuedLogMessages.TryDequeue(out var message))
-            {
-                LogMessage(message);
-            }
+            Log.Information("GuacWS Server is now running");
             app.Run();
-        }
-
-        private static void LogMessage(string log)
-        {
-            if (logger == null)
-            {
-                queuedLogMessages.Enqueue(log);
-            }
-            else
-            {
-                logger.LogInformation(message: log);
-            }
         }
     }
 }

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace GLOKON.GuacWS.Server.Infrastructure
 {
     public class ServerOptions
@@ -15,6 +17,8 @@ namespace GLOKON.GuacWS.Server.Infrastructure
         public long MaxUploadSize { get; set; } = 100_000_000;
 
         public bool UseHsts { get; set; } = false;
+
+        public IList<string> TrustedProxies { get; set; } = [];
 
         public LetsEncryptOptions LetsEncrypt { get; set; } = new LetsEncryptOptions();
 
