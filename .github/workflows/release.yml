@@ -59,19 +59,19 @@ jobs:
             dockerPlatform: windows/arm64
           - os: ubuntu-latest
             rid: linux-x64
-            docker: false
+            docker: true
             dockerPlatform: linux/amd64
           - os: ubuntu-latest
             rid: linux-arm64
-            docker: false
+            docker: true
             dockerPlatform: linux/arm64
           - os: ubuntu-latest
             rid: linux-musl-x64
-            docker: true
+            docker: false
             dockerPlatform: linux/amd64
           - os: ubuntu-latest
             rid: linux-musl-arm64
-            docker: true
+            docker: false
             dockerPlatform: linux/arm64
     with:
       branch: ${{ github.ref_name }}
