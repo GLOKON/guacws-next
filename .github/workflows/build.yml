@@ -16,7 +16,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            rid: linux-x64
+            rid: linux-musl-x64
             docker: true
             dockerPlatform: linux/amd64
     with:
