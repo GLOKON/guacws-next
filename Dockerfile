@@ -18,7 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpulse-dev \
     libssl-dev \
     uuid-dev \
-    build-essential \
     libavcodec-dev \
     libavformat-dev \
     libavutil-dev \
@@ -34,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     autoconf \
     automake \
-    libtool \
+    libtool-bin \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir /tmp/guac-build \
@@ -55,6 +54,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor \
     ghostscript \
     libicu-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libswscale-dev \
+    freerdp2-dev \
+    libpango1.0-dev \
+    libssh2-1-dev \
+    libtelnet-dev \
+    libvncserver-dev \
+    libwebsockets-dev \
+    libvorbis-dev \
+    libwebp-dev \
     && rm -rf /var/lib/apt/lists/* \
     && sed -i \
         -e 's|#load-module module-native-protocol-tcp|load-module module-native-protocol-tcp auth-anonymous=1|g' \
@@ -71,6 +82,7 @@ RUN cd /tmp \
 # Arguments to label built container
 ARG GIT_SHA
 ARG GIT_TAG=1.0.0
+ARG PREFIX_DIR=/opt/guacamole
 
 # Container labels (http://label-schema.org/)
 # Container annotations (https://github.com/opencontainers/image-spec)
@@ -94,6 +106,8 @@ LABEL maintainer="Daniel McAssey <hello at glokon dot me>" \
       org.opencontainers.image.version=$GIT_TAG \
       org.opencontainers.image.authors="Daniel McAssey <hello at glokon dot me>"
 
+ENV LC_ALL=C.UTF-8
+ENV LD_LIBRARY_PATH=${PREFIX_DIR}/lib
 ENV LOG_LEVEL='info'
 ENV Logging__LogLevel__Default='Information'
 ENV GuacOptions__UserDriveRoot='/user-drives'
@@ -101,19 +115,24 @@ ENV Server__SSL__CertificatePath='/certs/certificate.pfx'
 EXPOSE 8080
 EXPOSE 8081
 
-RUN adduser guacd 
-RUN mkdir -p /user-drives && chown -R guacd:guacd /user-drives
-RUN mkdir -p /certs && chown -R guacd:guacd /certs
+# Create a new user
+ARG USER_TO_RUN=guacd
+ARG UID=1000
+ARG GID=1000
+RUN groupadd --gid $GID ${USER_TO_RUN}
+RUN useradd --system --create-home --shell /sbin/nologin --uid $UID --gid $GID ${USER_TO_RUN}
+RUN mkdir -p /user-drives && chown -R ${USER_TO_RUN}:${USER_TO_RUN} /user-drives
+RUN mkdir -p /certs && chown -R ${USER_TO_RUN}:${USER_TO_RUN} /certs
 
 # Specity user drive volume
 VOLUME /user-drives
 VOLUME /certs
 
-USER guacd
+USER ${USER_TO_RUN}
 WORKDIR /app
 
-COPY --from=build --chown=guacd:guacd /opt/guacamole /opt/guacamole
-COPY --chown=guacd:guacd ./dist/ .
-COPY --chown=guacd:guacd ./docker/ .
+COPY --from=build --chown=${USER_TO_RUN}:${USER_TO_RUN} /opt/guacamole /opt/guacamole
+COPY --chown=${USER_TO_RUN}:${USER_TO_RUN} ./dist/ .
+COPY --chown=${USER_TO_RUN}:${USER_TO_RUN} ./docker/ .
 
 CMD ["supervisord", "-c", "supervisor.conf"]
