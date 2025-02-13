@@ -37,7 +37,7 @@ LABEL maintainer="Daniel McAssey <hello at glokon dot me>" \
 
 ENV LOG_LEVEL='info'
 ENV Logging__LogLevel__Default='Information'
-ENV GuacOptions__UserDriveRoot='/user-drives'
+ENV Guac__UserDriveRoot='/user-drives'
 ENV Server__SSL__CertificatePath='/certs/certificate.pfx'
 EXPOSE 8080
 EXPOSE 8081
