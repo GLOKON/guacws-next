@@ -132,6 +132,7 @@ USER ${USER_TO_RUN}
 WORKDIR /app
 
 COPY --from=build --chown=${USER_TO_RUN}:${USER_TO_RUN} /opt/guacamole /opt/guacamole
+COPY --from=build --chown=${USER_TO_RUN}:${USER_TO_RUN} /usr/lib/x86_64-linux-gnu/freerdp2 /usr/lib/x86_64-linux-gnu/freerdp2
 COPY --chown=${USER_TO_RUN}:${USER_TO_RUN} ./dist/ .
 COPY --chown=${USER_TO_RUN}:${USER_TO_RUN} ./docker/ .
 

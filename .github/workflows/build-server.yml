@@ -122,6 +122,8 @@ jobs:
         with:
           context: .
           platforms: ${{ inputs.dockerPlatform }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,"name=${{ inputs.dockerImage }}",push-by-digest=true,name-canonical=true,push=true
 
