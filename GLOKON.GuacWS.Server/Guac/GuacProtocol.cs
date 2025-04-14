@@ -1,9 +1,12 @@
-﻿using System.Linq;
+using System.Linq;
 
 namespace GLOKON.GuacWS.Server.Guac
 {
     public static class GuacProtocol
     {
+        public const string PingOpCode = "ping";
+        public const string InternalDataOpCode = "";
+
         public static string GetData(string parameter)
         {
             // Guac data format of "18.abcefg123"

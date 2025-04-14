@@ -16,9 +16,6 @@ namespace GLOKON.GuacWS.Server.Guac
 {
     internal class GuacConnection : IGuacConnection
     {
-        public const string PingOpCode = "ping";
-        private const string InternalDataOpCode = "";
-
         private readonly WebSocketConnection webSocket;
         private readonly GuacDClient guacD;
         private readonly GuacOptions options;
@@ -73,7 +70,7 @@ namespace GLOKON.GuacWS.Server.Guac
             await guacD.ConnectAsync();
 
             // Send Tunnel ID to Client
-            SendToWebSocket(GuacProtocol.FormatProtocolMessage(InternalDataOpCode, Id.ToString()));
+            SendToWebSocket(GuacProtocol.FormatProtocolMessage(GuacProtocol.InternalDataOpCode, Id.ToString()));
 
             // Send initial GuacD message
             handshakeMessage = string.Empty;
