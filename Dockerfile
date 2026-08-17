@@ -1,4 +1,4 @@
-FROM guacamole/guacd:1.5.5
+FROM guacamole/guacd:1.6.0
 
 USER root
 RUN apk update && apk add --no-cache \
