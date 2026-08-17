@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-GuacWS is a .NET 8 ASP.NET Core server that proxies WebSocket connections from a browser-based Guacamole client to `guacd` (the Apache Guacamole proxy daemon) over raw TCP. It replaces `guacamole-client`'s Java/Tomcat server. Connection parameters (host, credentials, protocol settings) are supplied by an external caller as an encrypted token rather than being stored server-side — this server has no database and no user management of its own.
+GuacWS is a .NET 10 ASP.NET Core server that proxies WebSocket connections from a browser-based Guacamole client to `guacd` (the Apache Guacamole proxy daemon) over raw TCP. It replaces `guacamole-client`'s Java/Tomcat server. Connection parameters (host, credentials, protocol settings) are supplied by an external caller as an encrypted token rather than being stored server-side — this server has no database and no user management of its own.
 
 ## Build & run
 
@@ -61,3 +61,5 @@ All config sections (`ServerOptions`, `WebSocketConnectionsOptions`, `CipherOpti
 ### Kestrel listener setup
 
 `Program.cs` (not `Startup.cs`) is where Kestrel bindings are configured — HTTP, HTTPS (via static cert, Let's Encrypt/LettuceEncrypt, or the ASP.NET dev cert), Unix sockets, and named pipes are all optionally enabled based on `ServerOptions`. This is unusual for a typical ASP.NET Core app (normally done via `appsettings.json` `Kestrel` section or `Configure`) — it's done here because listener choice depends on runtime logic (which cert source is configured, dev vs. prod).
+
+`Startup` is not wired up via `UseStartup<Startup>()` — `Program.cs` builds a `WebApplicationBuilder` and calls `Startup.ConfigureServices`/`Startup.Configure` on it directly. This is because `ConfigureKestrel` needs `ServerOptions` resolved from DI (via `kestrelOptions.ApplicationServices`) before the app is built, which requires `Startup.ConfigureServices` to have already registered it on `builder.Services`.

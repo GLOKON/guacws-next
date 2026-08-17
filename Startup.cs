@@ -95,9 +95,9 @@ namespace GLOKON.GuacWS.Server
 
                 foreach (var trustedProxy in serverOptions.TrustedProxies)
                 {
-                    if (IPNetwork.TryParse(trustedProxy, out var trustedNetwork) && trustedNetwork != null)
+                    if (System.Net.IPNetwork.TryParse(trustedProxy, out var trustedNetwork))
                     {
-                        options.KnownNetworks.Add(trustedNetwork);
+                        options.KnownIPNetworks.Add(trustedNetwork);
                     }
                 }
             });

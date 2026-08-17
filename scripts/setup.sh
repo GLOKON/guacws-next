@@ -2,7 +2,7 @@
 
 SCRIPT_ROOT="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 DAEMON_USER="guacd"
-GUAC_VERSION="1.5.5"
+GUAC_VERSION="1.6.0"
 GS_VERSION="10.02.1"
 
 if [ "$EUID" -ne 0 ]
