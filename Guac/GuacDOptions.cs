@@ -6,7 +6,7 @@
 
         public ushort Port { get; set; } = 4822;
 
-        public bool TcpNoDelay { get; set; } = false;
+        public bool TcpNoDelay { get; set; } = true;
 
         public int SendBufferSize { get; set; } = 8192;
 

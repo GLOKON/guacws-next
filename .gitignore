@@ -288,3 +288,5 @@ __pycache__/
 
 # Non-standard configuration
 appsettings.*.json
+.claude/.headroom_wrap_marker.json
+.tokensave/

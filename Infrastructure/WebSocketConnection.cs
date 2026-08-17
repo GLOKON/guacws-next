@@ -100,8 +100,6 @@ namespace GLOKON.GuacWS.Server.Infrastructure
         {
             try
             {
-                byte[] empty = [];
-
                 while (webSocket.State == WebSocketState.Open && !token.IsCancellationRequested)
                 {
                     ReadResult result = await reader.ReadAsync(token);
@@ -118,14 +116,21 @@ namespace GLOKON.GuacWS.Server.Infrastructure
                     }
                     else
                     {
+                        // Mark the last segment itself as EndOfMessage instead of following up with a
+                        // separate empty frame - avoids an extra WS frame/syscall on every multi-segment
+                        // flush, which is common under load when GuacD produces faster than we drain it.
                         SequencePosition position = buffer.Start;
+                        bool hasCurrent = buffer.TryGet(ref position, out ReadOnlyMemory<byte> current, advance: true);
 
-                        while (buffer.TryGet(ref position, out var memory, advance: true))
+                        while (hasCurrent)
                         {
-                            await webSocket.SendAsync(memory, WebSocketMessageType.Text, GetMessageFlags(false, !options.UseCompression), token);
-                        }
+                            bool hasNext = buffer.TryGet(ref position, out ReadOnlyMemory<byte> next, advance: true);
 
-                        await webSocket.SendAsync(empty, WebSocketMessageType.Text, GetMessageFlags(true, !options.UseCompression), token);
+                            await webSocket.SendAsync(current, WebSocketMessageType.Text, GetMessageFlags(!hasNext, !options.UseCompression), token);
+
+                            current = next;
+                            hasCurrent = hasNext;
+                        }
                     }
 
                     reader.AdvanceTo(buffer.End, buffer.End);
@@ -137,15 +142,25 @@ namespace GLOKON.GuacWS.Server.Infrastructure
             }
             catch (WebSocketException wsex) when (wsex.WebSocketErrorCode == WebSocketError.ConnectionClosedPrematurely)
             {
-                logger.LogError(wsex, "[{id}] Error occurred during receiving from WebSocket, closed prematurely", Id);
+                logger.LogError(wsex, "[{id}] Error occurred during sending to WebSocket, closed prematurely", Id);
                 isErrored = true;
                 errorMessage = "The WebSocket was closed prematurely";
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{id}] Error occurred during receiving from WebSocket", Id);
-                isErrored = true;
-                errorMessage = "Could not read from WebSocket";
+                if (token.IsCancellationRequested)
+                {
+                    // Expected: the connection is already tearing down (e.g. GuacConnection.StopAsync
+                    // closing the WebSocket, or the receive loop reacting to a close frame) can put the
+                    // WebSocket into a state where a SendAsync already in flight here throws. Not a real error.
+                    logger.LogDebug(ex, "[{id}] WebSocket send loop ended during shutdown", Id);
+                }
+                else
+                {
+                    logger.LogError(ex, "[{id}] Error occurred during sending to WebSocket", Id);
+                    isErrored = true;
+                    errorMessage = "Could not send to WebSocket";
+                }
             }
 
             await outputPipe.Reader.CompleteAsync();
@@ -202,9 +217,18 @@ namespace GLOKON.GuacWS.Server.Infrastructure
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{id}] Error occurred during receiving from WebSocket", Id);
-                isErrored = true;
-                errorMessage = "Could not read from WebSocket";
+                if (token.IsCancellationRequested)
+                {
+                    // Expected: the connection is already tearing down and SendUntilCloseAsync may have
+                    // put the WebSocket into a state where a ReceiveAsync already in flight here throws.
+                    logger.LogDebug(ex, "[{id}] WebSocket receive loop ended during shutdown", Id);
+                }
+                else
+                {
+                    logger.LogError(ex, "[{id}] Error occurred during receiving from WebSocket", Id);
+                    isErrored = true;
+                    errorMessage = "Could not read from WebSocket";
+                }
             }
 
             await inputPipe.Writer.CompleteAsync();

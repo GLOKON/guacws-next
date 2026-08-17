@@ -109,8 +109,12 @@ namespace GLOKON.GuacWS.Server.Guac
 
             try
             {
+                // Deliberately not disposing cts here: StartAsync's Task.WhenAny returns as soon as
+                // any one of the four pump tasks ends, so the others can still be mid-iteration and
+                // re-read cts.Token on their next loop pass (CancellationTokenSource.Token throws
+                // ObjectDisposedException once disposed, even for tokens already handed out). This CTS
+                // is never given a timeout, so it holds nothing worth reclaiming - leave it for the GC.
                 cts?.Cancel();
-                cts?.Dispose();
             }
             catch (Exception ex)
             {
@@ -220,8 +224,17 @@ namespace GLOKON.GuacWS.Server.Guac
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{id}] Error occurred during processing from WebSocket", Id);
-                throw;
+                if (cts.IsCancellationRequested)
+                {
+                    // Expected: the connection is already tearing down and guacD's own pump/close may
+                    // have completed guacD.Output out from under a write we had in flight. Not a real error.
+                    logger.LogDebug(ex, "[{id}] WebSocket processing loop ended during shutdown", Id);
+                }
+                else
+                {
+                    logger.LogError(ex, "[{id}] Error occurred during processing from WebSocket", Id);
+                    throw;
+                }
             }
 
             logger.LogDebug("[{id}] Finished processing from WebSocket", Id);
@@ -234,26 +247,61 @@ namespace GLOKON.GuacWS.Server.Guac
                 while (!cts.IsCancellationRequested)
                 {
                     ReadResult result = await reader.ReadAsync(cts.Token);
-                    if (result.IsCompleted || result.IsCanceled)
+                    if (result.IsCompleted)
+                    {
+                        break;
+                    }
+
+                    // A cancellation without the connection itself being torn down means we were
+                    // woken deliberately (CancelPendingRead from the activity monitor) to flush a
+                    // pending ping while GuacD is idle - fall through and loop back around instead
+                    // of tearing down the connection.
+                    if (result.IsCanceled && cts.IsCancellationRequested)
                     {
                         break;
                     }
 
                     ReadOnlySequence<byte> buffer = result.Buffer;
 
-                    while (TryReadGuacDMessage(ref buffer, out var messageBuffer))
+                    if (handshakeReplySent)
                     {
-                        if (messageBuffer.IsSingleSegment)
+                        // Fast path: once the handshake is complete we no longer need to know
+                        // individual instruction boundaries, so forward the raw bytes as-is
+                        // instead of scanning for delimiters and writing one instruction at a time.
+                        if (buffer.IsSingleSegment)
                         {
-                            ReceiveGuacDToWS(messageBuffer.First);
+                            ReceiveGuacDToWS(buffer.First);
                         }
                         else
                         {
-                            SequencePosition position = messageBuffer.Start;
+                            SequencePosition position = buffer.Start;
 
-                            while (messageBuffer.TryGet(ref position, out var memory, advance: true))
+                            while (buffer.TryGet(ref position, out var memory, advance: true))
                             {
                                 ReceiveGuacDToWS(memory);
+                            }
+                        }
+
+                        buffer = buffer.Slice(buffer.End);
+                    }
+                    else
+                    {
+                        // Slow path: only needed prior to handshake completion, where we must
+                        // buffer up individual instructions to detect the full handshake string.
+                        while (TryReadGuacDMessage(ref buffer, out var messageBuffer))
+                        {
+                            if (messageBuffer.IsSingleSegment)
+                            {
+                                ReceiveGuacDToWS(messageBuffer.First);
+                            }
+                            else
+                            {
+                                SequencePosition position = messageBuffer.Start;
+
+                                while (messageBuffer.TryGet(ref position, out var memory, advance: true))
+                                {
+                                    ReceiveGuacDToWS(memory);
+                                }
                             }
                         }
                     }
@@ -285,8 +333,17 @@ namespace GLOKON.GuacWS.Server.Guac
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{id}] Error occurred during processing from GuacD", Id);
-                throw;
+                if (cts.IsCancellationRequested)
+                {
+                    // Expected: the connection is already tearing down and the WebSocket's own pump/close
+                    // may have completed webSocket.Output out from under a write we had in flight.
+                    logger.LogDebug(ex, "[{id}] GuacD processing loop ended during shutdown", Id);
+                }
+                else
+                {
+                    logger.LogError(ex, "[{id}] Error occurred during processing from GuacD", Id);
+                    throw;
+                }
             }
 
             logger.LogDebug("[{id}] Finished processing from GuacD", Id);
@@ -439,7 +496,15 @@ namespace GLOKON.GuacWS.Server.Guac
                 int trackedTime = timeout;
                 while (!token.IsCancellationRequested)
                 {
-                    await Task.Delay(pingFrequency);
+                    try
+                    {
+                        await Task.Delay(pingFrequency, token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+
                     trackedTime -= pingFrequency;
 
                     if (trackedTime <= 0)
@@ -455,14 +520,19 @@ namespace GLOKON.GuacWS.Server.Guac
                         hasActivity = false;
                     }
 
-                    // If the handshake hasnt been sent, then we can write directly to web socket, if not we need to flag the writer thread
-                    if (!handshakeReplySent)
-                    {
-                        SendPingToWebSocket();
-                    }
-                    else if (!sendPing)
+                    // Always route the actual write through ProcessGuacDAsync's pump thread rather
+                    // than writing to webSocket.Output here directly - Pipelines only supports a
+                    // single writer at a time, and that loop also flushes webSocket.Output on every
+                    // iteration (including pre-handshake), so writing from this thread too would race it.
+                    if (!sendPing)
                     {
                         sendPing = true;
+
+                        // GuacD may be fully idle, in which case ProcessGuacDAsync would stay
+                        // blocked on reader.ReadAsync() and never flush this ping. CancelPendingRead
+                        // wakes it up without completing/closing the pipe so it can send the ping
+                        // and resume reading.
+                        guacD.Input.CancelPendingRead();
                     }
                 }
             }, CancellationToken.None); // We do not need to cancel it, as loop will exit anyway

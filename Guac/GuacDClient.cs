@@ -19,6 +19,7 @@ namespace GLOKON.GuacWS.Server.Guac
         private bool isClosed = false;
         private bool isDisposed = false;
         private NetworkStream stream;
+        private Task runTask;
 
         public Guid Id { get; }
 
@@ -60,7 +61,7 @@ namespace GLOKON.GuacWS.Server.Guac
             logger.LogDebug("[{id}] Connecting GuacD client to {host}:{port}", Id, options.Host, options.Port);
             await client.ConnectAsync(options.Host, options.Port);
             stream = client.GetStream();
-            outputWriter = PipeWriter.Create(stream);
+            outputWriter = PipeWriter.Create(stream, new StreamPipeWriterOptions(minimumBufferSize: options.SendBufferSize));
         }
 
         public async Task CloseAsync()
@@ -71,14 +72,38 @@ namespace GLOKON.GuacWS.Server.Guac
             }
 
             logger.LogDebug("[{id}] Disconnecting GuacD client", Id);
+
+            // Close the socket first so any in-flight stream.ReadAsync() inside RunUntilCloseAsync
+            // unblocks promptly, then wait for that loop to actually finish before completing/resetting
+            // inputPipe - it's the loop's own writer, and completing the pipe out from under it while
+            // it's mid Advance()/FlushAsync() would race the pipe's single-writer contract.
+            client.Close();
+
+            if (runTask != null)
+            {
+                try
+                {
+                    await runTask.ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[{id}] Unexpected error while waiting for GuacD receive loop to finish", Id);
+                }
+            }
+
             await inputPipe.Writer.CompleteAsync();
             await inputPipe.Reader.CompleteAsync();
-            client.Close();
             inputPipe.Reset();
             isClosed = true;
         }
 
-        public async Task RunUntilCloseAsync(CancellationToken token)
+        public Task RunUntilCloseAsync(CancellationToken token)
+        {
+            runTask = RunUntilCloseInternalAsync(token);
+            return runTask;
+        }
+
+        private async Task RunUntilCloseInternalAsync(CancellationToken token)
         {
             logger.LogDebug("[{id}] Using pipelines for GuacD", Id);
 
@@ -111,7 +136,16 @@ namespace GLOKON.GuacWS.Server.Guac
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is IOException)
             {
-                logger.LogError(ex, "[{id}] Error occurred during receiving from GuacD", Id);
+                if (token.IsCancellationRequested)
+                {
+                    // Expected: CloseAsync closes the socket to unblock our pending read before we
+                    // get a chance to observe cancellation - not a real failure.
+                    logger.LogDebug(ex, "[{id}] GuacD receive loop ended by connection close during shutdown", Id);
+                }
+                else
+                {
+                    logger.LogError(ex, "[{id}] Error occurred during receiving from GuacD", Id);
+                }
             }
 
             logger.LogDebug("[{id}] Finished running the GuacD client", Id);
