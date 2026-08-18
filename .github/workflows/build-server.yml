@@ -143,7 +143,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - uses: vimtor/action-zip@v1.2
+      - uses: vimtor/action-zip@v1.3
         if: inputs.publish == true
         with:
           files: dist/
