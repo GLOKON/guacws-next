@@ -35,7 +35,6 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
-    <None Include=".\.editorconfig" />
     <None Include="package-lock.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
@@ -89,5 +88,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="user-drives\" />
+    <InternalsVisibleTo Include="GLOKON.GuacWS.Server.Tests" />
   </ItemGroup>
 </Project>

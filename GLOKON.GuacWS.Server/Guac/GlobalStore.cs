@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 
 namespace GLOKON.GuacWS.Server.Guac
@@ -9,7 +9,7 @@ namespace GLOKON.GuacWS.Server.Guac
 
         public void UpdatePing(long timestamp)
         {
-            PingData = Encoding.UTF8.GetBytes(GuacProtocol.FormatProtocolMessage(GuacConnection.PingOpCode, timestamp.ToString()));
+            PingData = Encoding.UTF8.GetBytes(GuacProtocol.FormatProtocolMessage(GuacProtocol.PingOpCode, timestamp.ToString()));
         }
     }
 }
