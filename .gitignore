@@ -290,3 +290,4 @@ __pycache__/
 appsettings.*.json
 .claude/.headroom_wrap_marker.json
 .tokensave/
+dist/

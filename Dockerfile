@@ -57,4 +57,5 @@ WORKDIR /app
 COPY --chown=guacd:guacd ./dist/ .
 COPY --chown=guacd:guacd ./docker/ .
 
+ENTRYPOINT []
 CMD ["supervisord", "-c", "supervisor.conf"]
