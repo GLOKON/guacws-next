@@ -9,16 +9,16 @@ GuacWS is a .NET 10 ASP.NET Core server that proxies WebSocket connections from 
 ## Build & run
 
 ```bash
-dotnet build ./GLOKON.GuacWS.Server.csproj
-dotnet run --project ./GLOKON.GuacWS.Server.csproj
+dotnet build ./GLOKON.GuacWS.Server/GLOKON.GuacWS.Server.csproj
+dotnet run --project ./GLOKON.GuacWS.Server/GLOKON.GuacWS.Server.csproj
 ```
 
-There is no test project in this repo (`dotnet test` has nothing to run). There is no separate lint step; `.editorconfig` defines analyzer/style rules enforced by the C# analyzers built into `dotnet build`.
+Tests live in `GLOKON.GuacWS.Server.Tests` (`dotnet test`). There is no separate lint step; `.editorconfig` defines analyzer/style rules enforced by the C# analyzers built into `dotnet build`.
 
 Publishing a self-contained, ReadyToRun single-file binary (as CI does):
 
 ```bash
-dotnet publish ./GLOKON.GuacWS.Server.csproj --configuration Release --runtime linux-musl-x64 --output ./dist
+dotnet publish ./GLOKON.GuacWS.Server/GLOKON.GuacWS.Server.csproj --configuration Release --runtime linux-musl-x64 --output ./dist
 ```
 
 The server needs a running `guacd` instance to connect to (default `127.0.0.1:4822`, configured via `Guac:GuacD`). Docker image (`Dockerfile`) builds on top of `guacamole/guacd`, running both `guacd` and the .NET server side by side under `supervisord` (see `docker/supervisor.conf`, `scripts/supervisor/*.conf`). `scripts/setup.sh` and `scripts/install-*.sh` are for provisioning a bare-metal/systemd host instead (see `scripts/systemd/*.service`).

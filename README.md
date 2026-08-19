@@ -19,16 +19,16 @@ Because the connection profile — including credentials — never lives in a da
 ## Build & run
 
 ```bash
-dotnet build ./GLOKON.GuacWS.Server.csproj
-dotnet run --project ./GLOKON.GuacWS.Server.csproj
+dotnet build ./GLOKON.GuacWS.Server/GLOKON.GuacWS.Server.csproj
+dotnet run --project ./GLOKON.GuacWS.Server/GLOKON.GuacWS.Server.csproj
 ```
 
-There's no test project (`dotnet test` has nothing to run) and no separate lint step — `.editorconfig` defines the analyzer/style rules enforced by `dotnet build`.
+Tests live in `GLOKON.GuacWS.Server.Tests` (`dotnet test`). There's no separate lint step — `.editorconfig` defines the analyzer/style rules enforced by `dotnet build`.
 
 To publish a self-contained, ReadyToRun single-file binary (as CI does):
 
 ```bash
-dotnet publish ./GLOKON.GuacWS.Server.csproj --configuration Release --runtime linux-musl-x64 --output ./dist
+dotnet publish ./GLOKON.GuacWS.Server/GLOKON.GuacWS.Server.csproj --configuration Release --runtime linux-musl-x64 --output ./dist
 ```
 
 Swap `linux-musl-x64` for another [RID](https://learn.microsoft.com/dotnet/core/rid-catalog) (`win-x64`, `linux-x64`, `linux-arm64`, ...) to target a different platform.

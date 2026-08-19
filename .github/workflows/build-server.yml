@@ -98,6 +98,7 @@ jobs:
           
       - name: (Docker) Extract metadata (tags, labels)
         if: inputs.docker == true
+        id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ inputs.dockerImage }}
@@ -113,10 +114,21 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Build Server
-        run: dotnet publish ./GLOKON.GuacWS.Server.csproj -p:AssemblyVersion="${{ inputs.version }}.0" --configuration Release --runtime ${{ inputs.buildRuntime }} --output ./dist
+        run: dotnet publish ./GLOKON.GuacWS.Server/GLOKON.GuacWS.Server.csproj -p:AssemblyVersion="${{ inputs.version }}.0" --configuration Release --runtime ${{ inputs.buildRuntime }} --output ./dist
+
+      - name: (Docker) Build (validate only, no push)
+        if: inputs.docker == true && inputs.publish == false
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ inputs.dockerPlatform }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: ${{ steps.meta.outputs.labels }}
+          push: false
 
       - name: (Docker) Build and push by digest
-        if: inputs.docker == true
+        if: inputs.docker == true && inputs.publish == true
         id: build
         uses: docker/build-push-action@v6
         with:
@@ -128,7 +140,7 @@ jobs:
           outputs: type=image,"name=${{ inputs.dockerImage }}",push-by-digest=true,name-canonical=true,push=true
 
       - name: (Docker) Export digest
-        if: inputs.docker == true
+        if: inputs.docker == true && inputs.publish == true
         run: |
           mkdir -p ${{ runner.temp }}/digests
           digest="${{ steps.build.outputs.digest }}"

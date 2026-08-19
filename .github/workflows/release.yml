@@ -46,6 +46,7 @@ jobs:
     uses: ./.github/workflows/build-server.yml
     needs:
       - build_and_release
+    if: needs.build_and_release.outputs.published == 'true'
     strategy:
       matrix:
         include:
@@ -96,6 +97,7 @@ jobs:
     needs:
       - build_and_release
       - build-server
+    if: needs.build_and_release.outputs.published == 'true'
     steps:
       - name: Download digests
         uses: actions/download-artifact@v8
