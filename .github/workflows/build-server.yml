@@ -63,7 +63,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -136,14 +136,14 @@ jobs:
 
       - name: Upload digest
         if: inputs.docker == true && inputs.publish == true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: digests-${{ env.PLATFORM_PAIR }}
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
           retention-days: 1
 
-      - uses: vimtor/action-zip@v1.2
+      - uses: vimtor/action-zip@v1.3
         if: inputs.publish == true
         with:
           files: dist/
