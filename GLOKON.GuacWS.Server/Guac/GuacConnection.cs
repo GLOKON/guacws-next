@@ -146,7 +146,7 @@ namespace GLOKON.GuacWS.Server.Guac
             logger.LogInformation("[{id}] Stopped GuacWS Connection", Id);
         }
 
-        private static bool TryReadGuacDMessage(ref ReadOnlySequence<byte> buffer, out ReadOnlySequence<byte> message)
+        internal static bool TryReadGuacDMessage(ref ReadOnlySequence<byte> buffer, out ReadOnlySequence<byte> message)
         {
             SequencePosition? position = buffer.PositionOf(GuacDClient.DataDelimiter);
 
@@ -160,6 +160,11 @@ namespace GLOKON.GuacWS.Server.Guac
             message = buffer.Slice(0, nextDataStart);
             buffer = buffer.Slice(nextDataStart);
             return true;
+        }
+
+        internal static bool EndsOnInstructionBoundary(in ReadOnlySequence<byte> buffer)
+        {
+            return buffer.Length > 0 && buffer.Slice(buffer.Length - 1).First.Span[0] == GuacDClient.DataDelimiter;
         }
 
         private static string CreateUserDrive(string userPath)
@@ -259,6 +264,7 @@ namespace GLOKON.GuacWS.Server.Guac
                     }
 
                     ReadOnlySequence<byte> buffer = result.Buffer;
+                    bool endsOnInstructionBoundary = true;
 
                     if (handshakeReplySent)
                     {
@@ -278,6 +284,12 @@ namespace GLOKON.GuacWS.Server.Guac
                                 ReceiveGuacDToWS(memory);
                             }
                         }
+
+                        // The chunk just forwarded may end mid-instruction (this path doesn't scan for
+                        // terminators). Splicing a ping in here would land in the middle of an
+                        // in-flight instruction and corrupt the stream for the client's parser, so only
+                        // allow the ping below when this chunk happened to end on a ';' boundary.
+                        endsOnInstructionBoundary = EndsOnInstructionBoundary(buffer);
 
                         buffer = buffer.Slice(buffer.End);
                     }
@@ -303,8 +315,9 @@ namespace GLOKON.GuacWS.Server.Guac
                         }
                     }
 
-                    // Send ping if we have been signalled
-                    if (sendPing)
+                    // Send ping if we have been signalled, deferring if the fast path above just
+                    // forwarded a chunk that ended mid-instruction (see endsOnInstructionBoundary).
+                    if (sendPing && endsOnInstructionBoundary)
                     {
                         SendPingToWebSocket();
                     }

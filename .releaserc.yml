@@ -5,7 +5,7 @@ plugins:
   - - "@google/semantic-release-replace-plugin"
     - replacements:
         - files:
-            - "GLOKON.GuacWS.Server.csproj"
+            - "GLOKON.GuacWS.Server/GLOKON.GuacWS.Server.csproj"
           from: "<AssemblyVersion>.*</AssemblyVersion>"
           to: "<AssemblyVersion>${nextRelease.version}.0</AssemblyVersion>"
   - "@semantic-release/github"
