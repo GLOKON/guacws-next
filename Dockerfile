@@ -54,7 +54,7 @@ VOLUME /certs
 USER guacd
 WORKDIR /app
 
-COPY --chown=${USER_TO_RUN}:${USER_TO_RUN} ./dist/ .
-COPY --chown=${USER_TO_RUN}:${USER_TO_RUN} ./docker/ .
+COPY --chown=guacd:guacd ./dist/ .
+COPY --chown=guacd:guacd ./docker/ .
 
 CMD ["supervisord", "-c", "supervisor.conf"]
