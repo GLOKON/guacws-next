@@ -2,7 +2,7 @@
   "devDependencies": {
     "@google/semantic-release-replace-plugin": "^1.2.7",
     "@semantic-release/github": "^11.0.1",
-    "semantic-release-export-data": "^1.1.0"
+    "semantic-release-export-data": "^1.2.0"
   },
   "private": true
 }
