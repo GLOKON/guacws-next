@@ -34,7 +34,12 @@ namespace GLOKON.GuacWS.Server.Controllers
         [HttpPost("connection/{id}")]
         public async Task<IActionResult> UploadAsync(string id, List<IFormFile> files, CancellationToken cancellationToken)
         {
-            if (connectionsService.TryGetConnection(new Guid(id), out var connection) && !string.IsNullOrEmpty(connection.UserDrive) && files.Count > 0)
+            if (!Guid.TryParse(id, out Guid connectionId))
+            {
+                return Unauthorized();
+            }
+
+            if (connectionsService.TryGetConnection(connectionId, out var connection) && !string.IsNullOrEmpty(connection.UserDrive) && files.Count > 0)
             {
                 ConnectionProfile profile = JsonSerializer.Deserialize<ConnectionProfile>(HttpContext.User.FindFirstValue(tokenOptions.TokenClaimName), tokenOptions.TokenSerializerOptions);
 
@@ -45,14 +50,7 @@ namespace GLOKON.GuacWS.Server.Controllers
                     {
                         foreach (var formFile in files)
                         {
-                            string fileName = formFile.FileName ?? Guid.NewGuid().ToString();
-                            string destPath = connection.UserDrive.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar + fileName;
-                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-
-                            using (var stream = System.IO.File.Create(destPath))
-                            {
-                                await formFile.CopyToAsync(stream, cancellationToken);
-                            }
+                            await SaveFormFileAsync(connection.UserDrive, GetSafeFileName(formFile.FileName), formFile, cancellationToken);
                         }
 
                         return Ok();
@@ -85,7 +83,7 @@ namespace GLOKON.GuacWS.Server.Controllers
                 {
                     foreach (var formFile in files)
                     {
-                        var srcPath = Path.GetRandomFileName();
+                        var srcPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
                         using (var stream = System.IO.File.Create(srcPath))
                         {
@@ -93,14 +91,13 @@ namespace GLOKON.GuacWS.Server.Controllers
                             await formFile.CopyToAsync(stream, cancellationToken);
                         }
 
-                        string fileName = formFile.FileName ?? Guid.NewGuid().ToString();
+                        string fileName = GetSafeFileName(formFile.FileName);
 
                         foreach (var userDrive in userDrives)
                         {
                             try
                             {
-                                string destPath = userDrive.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar + fileName;
-                                Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                                string destPath = Path.Combine(userDrive, fileName);
                                 System.IO.File.Copy(srcPath, destPath, true);
                             }
                             catch
@@ -133,6 +130,23 @@ namespace GLOKON.GuacWS.Server.Controllers
             }
 
             return Unauthorized();
+        }
+
+        // formFile.FileName is client-controlled; Path.GetFileName strips any directory
+        // components (e.g. "../../etc/passwd") so it can't be used to write outside the
+        // target drive directory.
+        private static string GetSafeFileName(string fileName)
+        {
+            string safeFileName = Path.GetFileName(fileName);
+            return string.IsNullOrEmpty(safeFileName) ? Guid.NewGuid().ToString() : safeFileName;
+        }
+
+        private static async Task SaveFormFileAsync(string destDir, string safeFileName, IFormFile formFile, CancellationToken cancellationToken)
+        {
+            string destPath = Path.Combine(destDir, safeFileName);
+
+            using var stream = System.IO.File.Create(destPath);
+            await formFile.CopyToAsync(stream, cancellationToken);
         }
     }
 }

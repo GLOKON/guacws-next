@@ -40,7 +40,7 @@ namespace GLOKON.GuacWS.Server.Infrastructure
         public WebSocketConnection(Guid id, WebSocket webSocket, WebSocketConnectionsOptions options, ILogger logger)
         {
             Id = id;
-            this.webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
+            this.webSocket = webSocket;
             this.options = options;
             this.logger = logger;
 

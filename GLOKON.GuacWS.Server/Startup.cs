@@ -1,3 +1,4 @@
+using System;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
@@ -72,7 +73,7 @@ namespace GLOKON.GuacWS.Server
                     CipherType.RC2 => new SymmetricCipher(RC2.Create(), options.Key, options.Mode, options.KeySize),
                     CipherType.Rijndael => new SymmetricCipher(Rijndael.Create(), options.Key, options.Mode, options.KeySize),
                     CipherType.TripleDES => new SymmetricCipher(TripleDES.Create(), options.Key, options.Mode, options.KeySize),
-                    _ => null,
+                    _ => throw new InvalidOperationException($"Unsupported cipher type '{options.Type}' configured in Cipher:Type"),
                 };
             });
             services.AddSingleton<IGuacConnectionsService, GuacConnectionsServiceImpl>();

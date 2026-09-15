@@ -5,10 +5,11 @@ using System.Text;
 
 namespace GLOKON.GuacWS.Server.Cipher
 {
-    internal class SymmetricCipher
+    internal class SymmetricCipher : IDisposable
     {
         private readonly SymmetricAlgorithm algorithm;
         private readonly byte[] key;
+        private bool isDisposed;
 
         internal SymmetricCipher(SymmetricAlgorithm algorithm, string key, CipherMode cipherMode, int keySize)
         {
@@ -43,6 +44,17 @@ namespace GLOKON.GuacWS.Server.Cipher
             }
 
             return plainText;
+        }
+
+        public void Dispose()
+        {
+            if (isDisposed)
+            {
+                return;
+            }
+
+            algorithm.Dispose();
+            isDisposed = true;
         }
     }
 }

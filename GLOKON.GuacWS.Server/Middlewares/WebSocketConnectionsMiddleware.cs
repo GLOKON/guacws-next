@@ -38,7 +38,7 @@ namespace GLOKON.GuacWS.Server.Middlewares
             this.next = next;
             this.tokenOptions = tokenOptions.CurrentValue;
             this.store = store;
-            this.connectionsService = connectionsService ?? throw new ArgumentNullException(nameof(connectionsService));
+            this.connectionsService = connectionsService;
         }
 
         public async Task InvokeAsync(HttpContext context)

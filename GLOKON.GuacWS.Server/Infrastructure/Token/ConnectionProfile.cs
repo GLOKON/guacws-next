@@ -30,9 +30,16 @@ namespace GLOKON.GuacWS.Server.Infrastructure.Token
                         case JsonValueKind.True:
                             newProfile.Settings.Add(param.Key, "true");
                             break;
-                        default:
-                            newProfile.Settings.Add(param.Key, param.Value.ToString());
+                        case JsonValueKind.String:
+                            newProfile.Settings.Add(param.Key, param.Value.GetString());
                             break;
+                        case JsonValueKind.Number:
+                            newProfile.Settings.Add(param.Key, param.Value.GetRawText());
+                            break;
+                        default:
+                            // guacd settings are flat strings; an array/object value means the
+                            // token was malformed rather than something we can meaningfully flatten.
+                            throw new JsonException($"Setting '{param.Key}' has an unsupported value kind '{param.Value.ValueKind}'");
                     }
                 });
 

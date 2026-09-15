@@ -9,7 +9,8 @@ namespace GLOKON.GuacWS.Server.Guac
 
         public static string GetData(string parameter)
         {
-            // Guac data format of "18.abcefg123"
+            // Guac data format of "18.abcefg123". If there's no length-prefix delimiter
+            // (IndexOf returns -1, so +1 = 0), just return the string as-is rather than throwing.
             return parameter.Substring(parameter.IndexOf('.') + 1);
         }
 
@@ -37,7 +38,7 @@ namespace GLOKON.GuacWS.Server.Guac
         private static string FormatProtocolChunk(string chunk)
         {
             string finalChunk = chunk ?? string.Empty;
-            return string.Format("{0}.{1}", finalChunk.Length, finalChunk);
+            return $"{finalChunk.Length}.{finalChunk}";
         }
     }
 }

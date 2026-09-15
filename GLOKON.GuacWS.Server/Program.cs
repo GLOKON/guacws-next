@@ -62,7 +62,7 @@ namespace GLOKON.GuacWS.Server
                             {
                                 if (!File.Exists(serverOptions.SSL.CertificatePath))
                                 {
-                                    Log.Information("Failed to find SSL certificate: {0}", serverOptions.SSL.CertificatePath);
+                                    Log.Warning("Failed to find SSL certificate: {0}", serverOptions.SSL.CertificatePath);
                                 }
                                 else
                                 {
@@ -101,6 +101,9 @@ namespace GLOKON.GuacWS.Server
                         }
                     }
                 })
+                // Suppresses Kestrel's default "http://localhost:5000" binding (and any
+                // ASPNETCORE_URLS env var) now that ConfigureKestrel above sets up all
+                // listeners explicitly via Listen()/ListenUnixSocket()/ListenNamedPipe().
                 .UseUrls();
 
             var app = builder.Build();

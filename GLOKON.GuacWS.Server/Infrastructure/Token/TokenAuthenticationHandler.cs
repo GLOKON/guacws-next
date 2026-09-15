@@ -77,9 +77,10 @@ namespace GLOKON.GuacWS.Server.Infrastructure.Token
 
                     return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(new ClaimsIdentity(claims, "TokenAuth")), Scheme.Name)));
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    throw new TokenMissingOrInvalidException("Token is missing or invalid from the query string");
+                    Logger.LogDebug(ex, "Failed to parse or decrypt the connection token");
+                    throw new TokenMissingOrInvalidException("Token is missing or invalid from the query string", ex);
                 }
             }
             catch (Exception ex)
