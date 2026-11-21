@@ -41,12 +41,13 @@
       },
       "Serilog.Settings.Configuration": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "ayFE7h66mqMqzwfPrzDCMbWU27FdNC2bkCG+jnkeHFZTBRh+yWdr4aa/2WuX7c8RmqxGPMW2UqoJ3fw9hK3QhA==",
+        "requested": "[11.0.0, )",
+        "resolved": "11.0.0",
+        "contentHash": "2fFL1FwT+711DmAGwmbG8V6Z+qinxQgjhg5T+fb3dC7yYwMs4CvOFMZENXyBVHg3/EJecsyWqw7x5vTdQ07xdg==",
         "dependencies": {
-          "Microsoft.Extensions.DependencyModel": "10.0.0",
-          "Serilog": "4.3.0"
+          "Microsoft.Extensions.Configuration.Binder": "11.0.0",
+          "Microsoft.Extensions.DependencyModel": "11.0.0",
+          "Serilog": "4.4.0"
         }
       },
       "Serilog.Sinks.Console": {
@@ -72,10 +73,45 @@
         "resolved": "1.0.0",
         "contentHash": "eEofvwS0jj83wlB7KGbbtJnfJE6+unKTpIGpoTcsEy2ntJkmQQBBBQQs/zvCF8XibQW4Y3w40D7i/fW8NKCc2w=="
       },
+      "Microsoft.Extensions.Configuration": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "VQS/GkFU9oLQmXZv0AR/zluF0YAbEAoUQ5aYMqcRc2TWeKa6m2AjInAOnDhCcoWI5a6LQUCzTcl8B3DZZaPZLg==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "11.0.0",
+          "Microsoft.Extensions.Primitives": "11.0.0"
+        }
+      },
+      "Microsoft.Extensions.Configuration.Abstractions": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "oyBSWnEsEi9SZTiwAfuKIdVIiEZ7TvNOtdFaGqyzF9WtomNV+uZHCqhQbnz/ipjtM50BYJ4s0MWbYafolq2mAg==",
+        "dependencies": {
+          "Microsoft.Extensions.Primitives": "11.0.0"
+        }
+      },
+      "Microsoft.Extensions.Configuration.Binder": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "3eoaKF4Stat1PSN+KFwqmy04sM9DwGuHM1o1lHwuNFM/TqwQ+PCIvaQHS4lcT3kJl5rwvDK4w/rIlR0wc024eQ==",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "11.0.0",
+          "Microsoft.Extensions.Configuration.Abstractions": "11.0.0"
+        }
+      },
       "Microsoft.Extensions.DependencyModel": {
         "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "RFYJR7APio/BiqdQunRq6DB+nDB6nc2qhHr77mlvZ0q0BT8PubMXN7XicmfzCbrDE/dzhBnUKBRXLTcqUiZDGg=="
+        "resolved": "11.0.0",
+        "contentHash": "K6M9zulTQ3OU0myKAcBb/Gbfw/aTKa3wlxyDhwfOmT7Wavoxe0lzAkeDjS5+/1dqcgGDUZtIykJIo3T4W7zKbQ==",
+        "dependencies": {
+          "System.Text.Encodings.Web": "11.0.0",
+          "System.Text.Json": "11.0.0"
+        }
+      },
+      "Microsoft.Extensions.Primitives": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "HH2akbW2HeY/xeZJA5UceuQQX+1Pv/Kxrz/x4XPoH6wYDtgPIlBeOTZlQXlT+b50b1Ym/xfP+WJCX9FW4uLBXQ=="
       },
       "Newtonsoft.Json": {
         "type": "Transitive",
@@ -127,8 +163,33 @@
         "dependencies": {
           "Serilog": "4.2.0"
         }
+      },
+      "System.IO.Pipelines": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "F3biHUDT5JWIKhEcZrRjKuYy7XGZOe3GOU2N6rSOQeZBx+Ko/PY7K+VaC3BwD+ofQ9k0MXIhEB7uqJSRkZAkQQ=="
+      },
+      "System.Text.Encodings.Web": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "yNdu/KHBHq1rCu0d6TwKWNL1SvomZB4c/S0l4XKF1PX0gOIlPfnGVeBg7sQ3dmgy5e3UA+JGidak3abyBdlYAQ=="
+      },
+      "System.Text.Json": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "hyLfq7fRYbq8m3ENGqgEYkqxLeLx2xmNMlf6UG1a7RQo9OsTsfm4Ch/E6O+A5vYQ2ThneLUn1CHF644lmH5QhA==",
+        "dependencies": {
+          "System.IO.Pipelines": "11.0.0",
+          "System.Text.Encodings.Web": "11.0.0"
+        }
       }
     },
-    "net10.0/linux-x64": {}
+    "net10.0/linux-x64": {
+      "System.Text.Encodings.Web": {
+        "type": "Transitive",
+        "resolved": "11.0.0",
+        "contentHash": "yNdu/KHBHq1rCu0d6TwKWNL1SvomZB4c/S0l4XKF1PX0gOIlPfnGVeBg7sQ3dmgy5e3UA+JGidak3abyBdlYAQ=="
+      }
+    }
   }
 }
